@@ -239,6 +239,25 @@
   </div>
 </div>
 
+<script>
+/* Yedek tıklama dinleyicisi: modül yüklenemezse en azından uyarı göster */
+window.__bootOk = false;
+window.addEventListener('load', function () {
+  setTimeout(function () {
+    if (window.__bootOk) return;
+    if (document.getElementById('bootError')) return;
+    var d = document.createElement('div');
+    d.id = 'bootError';
+    d.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99998;' +
+      'max-width:92vw;background:#2b0d0d;border:2px solid #ff6b6b;border-radius:14px;padding:18px 22px;' +
+      'color:#ffd7d7;font:14px/1.6 monospace;white-space:pre-wrap;box-shadow:0 20px 60px rgba(0,0,0,.8)';
+    d.textContent = 'OYUN YÜKLENEMEDİ\n\n' +
+      'Tarayıcı konsolunu aç (F12 → Console) ve kırmızı hata mesajını bana gönder.\n\n' +
+      'Not: WebGL kapalıysa veya tarayıcı çok eskiyse oyun açılmaz.';
+    document.body.appendChild(d);
+  }, 2500);
+});
+</script>
 <script type="module">
 /* Hide and Seek 3D */
 const THREE = (() => {
@@ -53300,6 +53319,24 @@ return { ACESFilmicToneMapping, AddEquation, AddOperation, AdditiveAnimationBlen
 
 const $ = (id) => document.getElementById(id);
 
+/* --- global hata yakalayıcı: ekranda göster --- */
+function showFatal(msg, detail) {
+  try {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99999;' +
+      'max-width:90vw;background:#2b0d0d;border:2px solid #ff6b6b;border-radius:14px;padding:18px 22px;' +
+      'color:#ffd7d7;font:14px/1.5 monospace;white-space:pre-wrap;box-shadow:0 20px 60px rgba(0,0,0,.8)';
+    box.textContent = 'OYUN HATASI\n\n' + msg + '\n\n' + (detail || '') + '\n\nBu mesajı geliştiriciye gönder.';
+    document.body.appendChild(box);
+  } catch (e) { console.error(e); }
+}
+window.addEventListener('error', (e) => {
+  console.error('[global]', e.message, e.filename, e.lineno);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('[promise]', e.reason);
+});
+
 /* ==================== AYARLAR ==================== */
 const SENS_LEVELS = [
   { name: 'Düşük', v: 0.0016 },
@@ -55032,11 +55069,17 @@ const trapShopEl = $('trapShop');
 if (trapShopEl) trapShopEl.addEventListener('click', (e) => { if (e.target.id === 'trapShop') closeTrapShop(); });
 
 /* ==================== BAŞLAT ==================== */
-try { applySensLabel(); } catch (e) { console.error(e); }
-try { applyMapSize(); } catch (e) { console.error(e); }
-try { renderMenuStats(); } catch (e) { console.error(e); }
-try { renderShop(); } catch (e) { console.error(e); }
-try { renderAbilities(); } catch (e) { console.error(e); }
+try {
+  applySensLabel();
+  applyMapSize();
+  renderMenuStats();
+  renderShop();
+  renderAbilities();
+  window.__bootOk = true;
+} catch (err) {
+  console.error('[boot]', err);
+  showFatal(err && err.message ? err.message : String(err), err && err.stack ? err.stack.split('\n').slice(0, 4).join('\n') : '');
+}
 
 // hata ayıklama / test
 window.__game = {
