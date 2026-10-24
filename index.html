@@ -2,7 +2,11 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#0d1117" />
+<link rel="manifest" href="./manifest.webmanifest" />
 <title>Hide and Seek 3D</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -107,6 +111,44 @@
     color:#a9c6f0; font-weight:700; }
   .badge.on { background:rgba(125,240,180,.18); color:#7df0b4; }
   .coins { font-size:15px; font-weight:800; color:#ffd166; }
+
+  /* ================= MOBİL DOKUNMATİK KONTROLLER ================= */
+  #touchControls { position:fixed; inset:0; pointer-events:none; z-index:8; display:none; }
+  body.touch #touchControls { display:block; }
+  body.touch #staminaWrap { width:180px; }
+  body.touch #prompt { font-size:12px; }
+
+  #joystick { position:absolute; left:22px; bottom:24px; width:132px; height:132px;
+    border-radius:50%; background:rgba(13,17,23,.55); border:2px solid rgba(120,170,255,.35);
+    pointer-events:auto; touch-action:none; display:flex; align-items:center; justify-content:center; }
+  #joyKnob { width:56px; height:56px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #7df0b4, #25b6a0);
+    box-shadow:0 4px 14px rgba(0,0,0,.5); transition:transform .04s linear; }
+
+  #lookPad { position:absolute; right:0; top:0; width:55%; height:100%;
+    pointer-events:auto; touch-action:none; }
+
+  #touchButtons { position:absolute; right:18px; bottom:22px; display:grid;
+    grid-template-columns:repeat(3, 60px); gap:10px; pointer-events:none; }
+  .tbtn { width:60px; height:60px; border-radius:50%; pointer-events:auto; touch-action:none;
+    background:rgba(13,17,23,.75); border:2px solid rgba(120,170,255,.35);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size:22px; color:#e8eef7; user-select:none; -webkit-tap-highlight-color:transparent; }
+  .tbtn:active { background:rgba(125,240,180,.35); border-color:#7df0b4; transform:scale(.94); }
+  .tbtn small { font-size:8.5px; font-weight:800; color:#8fa3bd; letter-spacing:.4px; margin-top:-1px; }
+  .tbtn.run { border-color:rgba(255,209,102,.6); }
+  .tbtn.jump { grid-column:3; }
+  #btnCatch { display:none; }
+  body.seeker #btnCatch { display:flex; }
+  body.seeker #btnInteract, body.seeker #btnShop, body.seeker #btnTrap, body.seeker #btnSwitch { display:none; }
+
+  /* dikey ekran uyarısı */
+  #rotateHint { display:none; position:fixed; inset:0; z-index:100; background:#0b1220;
+    align-items:center; justify-content:center; flex-direction:column; gap:14px;
+    color:#e8eef7; font-size:18px; font-weight:700; text-align:center; padding:30px; }
+  @media (max-height: 480px) and (orientation: portrait) {
+    body.touch #rotateHint { display:flex; }
+  }
   /* tuzak dükkanı: HUD pointer-events:none olduğu için elle aç */
   #trapShop { pointer-events: auto; }
   #trapShop .shopGrid, #trapShop .item { pointer-events: auto; }
@@ -163,6 +205,9 @@
       <button class="btn primary" id="startBtn">Oyuna Başla</button>
       <button class="btn" id="shopBtn">🛒 Mağaza</button>
       <button class="btn" id="loadoutBtn">🎒 Ekipman</button>
+    </div>
+    <div class="row">
+      <button class="btn hidden" id="installBtn" style="background:linear-gradient(135deg,#4d7ea8,#3d6b8f);border-color:transparent;color:#fff;font-weight:800">⬇️ Uygulama Olarak Yükle</button>
     </div>
     <div class="row">
       <button class="btn small" id="sensBtn">Hassasiyet: Orta</button>
@@ -247,6 +292,28 @@
       <button class="btn" id="menuBtn">Menü</button>
     </div>
   </div>
+</div>
+
+<!-- MOBİL DOKUNMATİK KONTROLLER -->
+<div id="touchControls">
+  <div id="lookPad"></div>
+  <div id="joystick"><div id="joyKnob"></div></div>
+  <div id="touchButtons">
+    <div class="tbtn" id="btnInteract">🌿<small>E</small></div>
+    <div class="tbtn" id="btnShop">🛒<small>Q</small></div>
+    <div class="tbtn" id="btnTrap">🪤<small>R</small></div>
+    <div class="tbtn" id="btnSwitch">🔄<small>T</small></div>
+    <div class="tbtn run" id="btnRun">🏃<small>KOŞ</small></div>
+    <div class="tbtn jump" id="btnJump">⤒<small>ZIPLA</small></div>
+    <div class="tbtn" id="btnAbility1">💨<small>F</small></div>
+    <div class="tbtn" id="btnAbility2">📡<small>G</small></div>
+    <div class="tbtn" id="btnCatch">✋<small>YAKALA</small></div>
+  </div>
+</div>
+
+<div id="rotateHint">
+  <div style="font-size:52px">📱↻</div>
+  <div>En iyi deneyim için telefonu yan çevir</div>
 </div>
 
 <script>
@@ -53936,6 +54003,15 @@ const player = {
 const keys = Object.create(null);
 let pointerLocked = false;
 
+/* ===== Dokunmatik kontroller (mobil) ===== */
+const touch = {
+  enabled: false,
+  move: { x: 0, y: 0, active: false, id: null, ox: 0, oy: 0 },   // sol joystick
+  look: { dx: 0, dy: 0, active: false, id: null, lx: 0, ly: 0 },  // sağ alan bakış
+  runBtn: false,
+};
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
 addEventListener('keydown', (e) => {
   if (e.code === 'Escape' && trapShopOpen) { closeTrapShop(); return; }
   if (keys[e.code]) return;
@@ -53975,7 +54051,7 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
 addEventListener('pointerup', () => { dragging = false; });
 
 addEventListener('mousemove', (e) => {
-  if (state.phase !== 'playing') return;
+  if (state.phase !== 'playing' || touch.enabled) return;
   if (!pointerLocked && !dragging) return;      // kilit yoksa sürükleyerek bak
   const s = SENS_LEVELS[cfg.sensIdx].v * (pointerLocked ? 1 : 1.6);
   player.yaw -= e.movementX * s;
@@ -53996,6 +54072,157 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
+
+
+/* ==================== PWA: YÜKLE / ÇEVRİMDIŞI ==================== */
+let swReady = false;
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('./sw.js').then(() => { swReady = true; }).catch(() => {});
+}
+
+// Yükle butonu (PWA kurulumu)
+let deferredPrompt = null;
+addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = $('installBtn');
+  if (btn) btn.classList.remove('hidden');
+});
+
+addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  const btn = $('installBtn');
+  if (btn) btn.classList.add('hidden');
+  toast('Yüklendi!', 'Ana ekrandan açabilirsin', '#7df0b4', 1600);
+});
+
+function installApp() {
+  if (!deferredPrompt) {
+    toast('Kurulum yok', 'Tarayıcı menüsünden "Ana ekrana ekle" kullan', '#ffd166', 1800);
+    return;
+  }
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then((r) => {
+    if (r.outcome === 'accepted') toast('Kuruluyor…', '', '#7df0b4', 1200);
+    deferredPrompt = null;
+  });
+}
+
+/* ==================== DOKUNMATİK KONTROLLER ==================== */
+function setupTouch() {
+  if (!isTouchDevice) return;
+  touch.enabled = true;
+  document.body.classList.add('touch');
+
+  const canvas = renderer.domElement;
+  canvas.style.touchAction = 'none';
+
+  const joy = $('joystick');
+  const knob = $('joyKnob');
+  const lookPad = $('lookPad');
+
+  const JOY_R = 52;
+
+  function joyStart(e) {
+    const t = e.changedTouches ? e.changedTouches[0] : e;
+    touch.move.active = true;
+    touch.move.id = t.identifier ?? 'mouse';
+    const rect = joy.getBoundingClientRect();
+    touch.move.cx = rect.left + rect.width / 2;
+    touch.move.cy = rect.top + rect.height / 2;
+    joyMove(e);
+    e.preventDefault();
+  }
+  function joyMove(e) {
+    if (!touch.move.active) return;
+    const list = e.changedTouches ? [...e.changedTouches] : [e];
+    const t = list.find((x) => (x.identifier ?? 'mouse') === touch.move.id) || list[0];
+    if (!t) return;
+    let dx = t.clientX - touch.move.cx;
+    let dy = t.clientY - touch.move.cy;
+    const len = Math.hypot(dx, dy);
+    if (len > JOY_R) { dx = dx / len * JOY_R; dy = dy / len * JOY_R; }
+    touch.move.x = dx / JOY_R;
+    touch.move.y = dy / JOY_R;
+    if (knob) knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    e.preventDefault();
+  }
+  function joyEnd(e) {
+    touch.move.active = false;
+    touch.move.x = 0; touch.move.y = 0;
+    if (knob) knob.style.transform = 'translate(0,0)';
+  }
+
+  joy.addEventListener('touchstart', joyStart, { passive: false });
+  joy.addEventListener('touchmove', joyMove, { passive: false });
+  joy.addEventListener('touchend', joyEnd);
+  joy.addEventListener('touchcancel', joyEnd);
+
+  // Sağ alan: bakış
+  function lookStart(e) {
+    const t = e.changedTouches[0];
+    touch.look.active = true;
+    touch.look.id = t.identifier;
+    touch.look.lx = t.clientX;
+    touch.look.ly = t.clientY;
+    e.preventDefault();
+  }
+  function lookMove(e) {
+    if (!touch.look.active) return;
+    const list = [...e.changedTouches];
+    const t = list.find((x) => x.identifier === touch.look.id);
+    if (!t) return;
+    const dx = t.clientX - touch.look.lx;
+    const dy = t.clientY - touch.look.ly;
+    touch.look.lx = t.clientX;
+    touch.look.ly = t.clientY;
+    const sens = SENS_LEVELS[cfg.sensIdx].v * 3.2;
+    player.yaw -= dx * sens;
+    player.pitch -= dy * sens * (cfg.invertY ? -1 : 1);
+    player.pitch = Math.max(-1.3, Math.min(1.3, player.pitch));
+    e.preventDefault();
+  }
+  function lookEnd() { touch.look.active = false; }
+
+  lookPad.addEventListener('touchstart', lookStart, { passive: false });
+  lookPad.addEventListener('touchmove', lookMove, { passive: false });
+  lookPad.addEventListener('touchend', lookEnd);
+  lookPad.addEventListener('touchcancel', lookEnd);
+
+  // Koş butonu
+  const runBtn = $('btnRun');
+  if (runBtn) {
+    runBtn.addEventListener('touchstart', (e) => { touch.runBtn = true; e.preventDefault(); }, { passive: false });
+    runBtn.addEventListener('touchend', () => { touch.runBtn = false; });
+    runBtn.addEventListener('touchcancel', () => { touch.runBtn = false; });
+  }
+
+  // Zıpla
+  const jumpBtn = $('btnJump');
+  if (jumpBtn) jumpBtn.addEventListener('touchstart', (e) => { player.wantJump = true; e.preventDefault(); }, { passive: false });
+
+  // Eylem butonları
+  const bind = (id, fn) => {
+    const b = $(id);
+    if (!b) return;
+    b.addEventListener('touchstart', (e) => { e.preventDefault(); fn(); }, { passive: false });
+    b.addEventListener('click', (e) => { e.preventDefault(); fn(); });
+  };
+  bind('btnInteract', () => tryInteract());
+  bind('btnShop', () => openTrapShop());
+  bind('btnTrap', () => placeTrap());
+  bind('btnSwitch', () => cycleTrap());
+  bind('btnAbility1', () => useAbility(0));
+  bind('btnAbility2', () => useAbility(1));
+  bind('btnCatch', () => tryCatch());
+
+  // Oyun alanına dokunma: fare kilidi istemiyoruz
+  canvas.addEventListener('touchstart', (e) => {
+    if (state.phase !== 'playing') return;
+    e.preventDefault();
+  }, { passive: false });
+}
 
 /* ==================== FİZİK / GÖRÜŞ ==================== */
 function collides(x, z, r, feetY = 0) {
@@ -54222,6 +54449,7 @@ function startRound(forceRole = null) {
 
   $('roleChip').className = 'chip ' + state.role;
   $('roleTxt').textContent = state.role === 'hider' ? 'SAKLANAN' : 'EBE';
+  document.body.classList.toggle('seeker', state.role === 'seeker');
 
   state.phase = 'playing';
   $('menu').classList.add('hidden');
@@ -54624,10 +54852,17 @@ function updatePlayer(dt) {
   if (keys['KeyD'] || keys['ArrowRight']) wish.add(right);
   if (keys['KeyA'] || keys['ArrowLeft']) wish.sub(right);
 
+  // dokunmatik joystick
+  if (touch.enabled && touch.move.active) {
+    wish.add(fwd.clone().multiplyScalar(-touch.move.y));
+    wish.add(right.clone().multiplyScalar(touch.move.x));
+  }
+
   const moving = wish.lengthSq() > 0;
   if (moving) wish.normalize();
 
-  const wantRun = (keys['ShiftLeft'] || keys['ShiftRight']) && moving && !player.exhausted;
+  const touchRun = touch.enabled && touch.runBtn;
+  const wantRun = (keys['ShiftLeft'] || keys['ShiftRight'] || touchRun) && moving && !player.exhausted;
   if (wantRun) {
     player.stamina = Math.max(0, player.stamina - dt * 22);
     if (player.stamina <= 0) player.exhausted = true;
@@ -55305,6 +55540,7 @@ on('shopBack', () => {
   if (state.phase === 'menu') { $('menu').classList.remove('hidden'); renderMenuStats(); }
   else { $('endScreen').classList.remove('hidden'); }
 });
+on('installBtn', () => installApp());
 on('loadoutBtn', () => { renderLoadout(); $('menu').classList.add('hidden'); $('loadout').classList.remove('hidden'); });
 on('loadoutBack', () => { $('loadout').classList.add('hidden'); $('menu').classList.remove('hidden'); });
 
@@ -55337,6 +55573,7 @@ try {
   renderMenuStats();
   renderShop();
   renderAbilities();
+  setupTouch();
   window.__bootOk = true;
 } catch (err) {
   console.error('[boot]', err);
