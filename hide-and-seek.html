@@ -134,7 +134,7 @@
   .mapCard.sel .mapName { color:#7df0b4; }
 
   /* zorluk seçimi */
-  .diffRow { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+  .diffRow { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
   .diffCard { cursor:pointer; font-family:inherit; text-align:center; color:#cfe0f5;
     background:rgba(255,255,255,.04); border:2px solid rgba(120,170,255,.18);
     border-radius:14px; padding:12px 8px; transition:all .15s; }
@@ -142,7 +142,7 @@
   .diffCard.sel { border-color:#ffd166; background:rgba(255,209,102,.12); }
   .diffIcon { font-size:22px; margin-bottom:3px; }
   .diffName { font-weight:800; font-size:14px; color:#e8eef7; }
-  .diffDesc { font-size:11px; color:#8fa3bd; margin-top:2px; }
+  .diffDesc { font-size:10px; color:#8fa3bd; margin-top:2px; line-height:1.3; }
   .diffCard.sel .diffName { color:#ffd166; }
 
   /* online lobi */
@@ -303,6 +303,16 @@
         <div class="diffIcon">🔥</div>
         <div class="diffName">Zor</div>
         <div class="diffDesc">4 bot · 65 sn · hızlı</div>
+      </button>
+      <button class="diffCard" data-diff="endless">
+        <div class="diffIcon">♾️</div>
+        <div class="diffName">Sınırsız</div>
+        <div class="diffDesc">Süre yok · sonsuz koşu</div>
+      </button>
+      <button class="diffCard" data-diff="crazy">
+        <div class="diffIcon">🤪</div>
+        <div class="diffName">Çılgın</div>
+        <div class="diffDesc">Kaotik olaylar · dev botlar</div>
       </button>
     </div>
     <div class="row">
@@ -53761,6 +53771,20 @@ const DIFFICULTY = {
     time: 65, seekerCount: 4, seekerSpeed: 3.1, seekerChase: 5.9,
     seekerView: 24, hearRange: 1.5, coinMult: 1.6,
   },
+  endless: {
+    id: 'endless', name: 'Sınırsız', icon: '♾️', color: '#7dd3fc',
+    desc: 'Süre yok · dayanıklılık yok · sonsuz koşu',
+    time: Infinity, seekerCount: 3, seekerSpeed: 2.5, seekerChase: 5.0,
+    seekerView: 18, hearRange: 1.0, coinMult: 1.0,
+    infiniteStamina: true,
+  },
+  crazy: {
+    id: 'crazy', name: 'Çılgın', icon: '🤪', color: '#f472b6',
+    desc: 'Kaotik · rastgele olaylar · zoom · dev botlar',
+    time: 90, seekerCount: 4, seekerSpeed: 2.8, seekerChase: 5.6,
+    seekerView: 22, hearRange: 1.3, coinMult: 1.4,
+    infiniteStamina: true, crazyMode: true,
+  },
 };
 
 function currentDifficulty() {
@@ -54700,6 +54724,7 @@ const player = {
   hidden: null, bob: 0, stepTimer: 0, stun: 0,
   sprintT: 0, sprintCd: 0, sprintMult: 1,
   y: 0, vy: 0, grounded: true, jumps: 0,
+  shake: 0,
 };
 
 /* ==================== GİRDİ ==================== */
@@ -56387,6 +56412,108 @@ function clearFreezeFx() {
   if (freezeState.beam) { scene.remove(freezeState.beam.line); freezeState.beam = null; }
 }
 
+
+/* ==================== ÇILGIN MOD ==================== */
+const crazy = {
+  timer: 0,
+  next: 6,
+  active: false,
+  zoomT: 0,
+  gravDir: 1,
+  lastEvent: '',
+};
+
+function crazyEvent() {
+  const roll = Math.floor(Math.random() * 7);
+  switch (roll) {
+    case 0:
+      // TERS YERÇEKİMİ (zıplama tersine)
+      toast('YERÇEKİMİ TERS!', 'Zıplamalar tuhaf hissettirecek', '#f472b6', 2200);
+      player.vy = -9;
+      break;
+
+    case 1:
+      // ZOOM (FOV değişir)
+      toast('ALGILAR BOZULDU', 'Görüş alanı değişti', '#f472b6', 2000);
+      crazy.zoomT = 8;
+      camera.fov = 100 + Math.random() * 40;
+      camera.updateProjectionMatrix();
+      break;
+
+    case 2:
+      // BOTLAR DEVLEŞİR
+      toast('BOTLAR DEVLEŞTİ!', 'Kaç!', '#ff6b6b', 2000);
+      for (const n of npcs) {
+        if (n.role === 'seeker' && !n.caught) {
+          n.mesh.scale.setScalar(1.8);
+          n.speedBoost = 1.5;
+        }
+      }
+      break;
+
+    case 3:
+      // IŞINLANMA
+      toast('IŞINLANDIN', '', '#f472b6', 1500);
+      const p = randomFreePoint(null, 10);
+      player.pos.copy(p);
+      player.vy = 0;
+      break;
+
+    case 4:
+      // BOTLAR DURUR (kısa mola)
+      toast('DONAKALDILAR', '10 saniye fırsat', '#7dd3fc', 2000);
+      for (const n of npcs) {
+        if (n.role === 'seeker') n.frozen = 10;
+      }
+      break;
+
+    case 5:
+      // HIZ ARTIŞI
+      toast('HIZ PATLAMASI', '15 saniye çok hızlı', '#7df0b4', 2000);
+      player.sprintT = 15;
+      break;
+
+    case 6:
+      // EKRAN TİTRER
+      toast('DEPREM!', 'Zemin sarsılıyor', '#ff9c9c', 2000);
+      player.shake = 2.5;
+      break;
+  }
+  crazy.lastEvent = String(roll);
+}
+
+function updateCrazy(dt) {
+  const D = currentDifficulty();
+  if (!D.crazyMode) return;
+
+  crazy.timer += dt;
+  if (crazy.timer > crazy.next) {
+    crazy.timer = 0;
+    crazy.next = 8 + Math.random() * 12;
+    crazyEvent();
+  }
+
+  // zoom geri döner
+  if (crazy.zoomT > 0) {
+    crazy.zoomT -= dt;
+    if (crazy.zoomT <= 0) {
+      camera.fov = 74;
+      camera.updateProjectionMatrix();
+    }
+  }
+
+  // bot ölçekleri normal (devleşenler 15 sn sonra küçülür)
+  for (const n of npcs) {
+    if (n.mesh.scale.x > 1.05) {
+      n.scaleT = (n.scaleT || 15) - dt;
+      if (n.scaleT <= 0) { n.mesh.scale.setScalar(1); n.speedBoost = 1; n.scaleT = null; }
+    }
+  }
+}
+
+/* Oyuncu titremesi (deprem) */
+if (!player.shake) player.shake = 0;
+
 /* ==================== YETENEKLER ==================== */
 function abilityInfo() {
   const list = [];
@@ -56584,7 +56711,11 @@ function updatePlayer(dt) {
 
   const touchRun = touch.enabled && touch.runBtn;
   const wantRun = (keys['ShiftLeft'] || keys['ShiftRight'] || touchRun) && moving && !player.exhausted;
-  if (wantRun) {
+  const DIFF_STAM = currentDifficulty();
+  if (DIFF_STAM.infiniteStamina) {
+    player.stamina = player.staminaMax;
+    player.exhausted = false;
+  } else if (wantRun) {
     player.stamina = Math.max(0, player.stamina - dt * 22);
     if (player.stamina <= 0) player.exhausted = true;
   } else {
@@ -56854,7 +56985,7 @@ function updateSeekerNPC(n, dt) {
     } else {
       n.target = smartWaypoint(n.pos, player.pos);
     }
-    n.speed = DIFF.seekerChase * n.personality;
+    n.speed = DIFF.seekerChase * n.personality * (n.speedBoost || 1);
     n.lookT = 0;
   } else if (n.state === 'investigate') {
     n.speed = (DIFF.seekerChase - 1.1) * n.personality;
@@ -56882,7 +57013,7 @@ function updateSeekerNPC(n, dt) {
     }
   } else {
     // devriye: haritayı tara
-    n.speed = DIFF.seekerSpeed;
+    n.speed = DIFF.seekerSpeed * (n.speedBoost || 1);
     if (!n.target || n.pos.distanceTo(n.target) < 1.6) {
       // oyuncunun olmadığı bölgeye yönel
       let best = null, bestScore = -1e9;
@@ -57120,9 +57251,9 @@ function drawMinimap() {
 
 function updateHUD(dt) {
   if (state.phase !== 'playing') return;
-  state.time -= dt;
-  $('timer').classList.toggle('warn', state.time < 15);
-  $('timeVal').textContent = fmtTime(state.time);
+  if (state.time !== Infinity) state.time -= dt;
+  $('timer').classList.toggle('warn', state.time !== Infinity && state.time < 15);
+  $('timeVal').textContent = state.time === Infinity ? '∞' : fmtTime(state.time);
   $('coinVal').textContent = save.coins;
   $('trapPoints').textContent = Math.floor(trapPoints.n);
   const invTxt = `🕸️${trapInv.net} 🍌${trapInv.banana} 🎭${trapInv.decoy}`;
@@ -57430,9 +57561,10 @@ function applySensLabel() {
 
 /* ==================== KAMERA ==================== */
 function updateCamera(dt) {
+  if (player.shake > 0) player.shake = Math.max(0, player.shake - dt * 1.2);
   const eye = (player.hidden ? 1.15 : cfg.eye) + (player.y || 0);
-  camera.position.x = player.pos.x;
-  camera.position.z = player.pos.z;
+  camera.position.x = player.pos.x + (player.shake > 0 ? (Math.random() - 0.5) * player.shake * 0.08 : 0);
+  camera.position.z = player.pos.z + (player.shake > 0 ? (Math.random() - 0.5) * player.shake * 0.08 : 0);
   camera.position.y = THREE.MathUtils.lerp(camera.position.y, eye, Math.min(1, dt * 10));
 
   const sp = player.vel.length();
@@ -57468,6 +57600,7 @@ function loop() {
     updateSmoke(dt);
     updateJumpRings(dt);
     updateFreezeFx(dt);
+    updateCrazy(dt);
     if (ONLINE.roomCode) {
       ONLINE.syncTimer += dt;
       if (ONLINE.syncTimer > 0.2) { ONLINE.syncTimer = 0; sendPosition(true); }
@@ -57587,7 +57720,7 @@ window.__game = {
   get platforms() { return platforms; },
   get jumpRings() { return jumpRings; },
   get currentMap() { return currentMap; },
-  buildMap, selectMap, MAPS, DIFFICULTY, selectDifficulty, currentDifficulty,
+  buildMap, selectMap, MAPS, DIFFICULTY, selectDifficulty, currentDifficulty, crazyEvent, updateCrazy,
   p2, mpState, startMultiplayerRound, createPlayerTwo, updatePlayerTwo, clearMultiplayer,
   buyFreezeGun, buyAmmo, fireFreezeGun, hasFreezeGun, hasEquippedFreezeGun, totalAmmo,
   ONLINE, renderLobby, showLobby, startOnlineRound, clearRemotePlayers,
