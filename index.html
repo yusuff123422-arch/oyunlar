@@ -112,6 +112,18 @@
   .badge.on { background:rgba(125,240,180,.18); color:#7df0b4; }
   .coins { font-size:15px; font-weight:800; color:#ffd166; }
 
+  /* harita seçimi */
+  .mapRow { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+  .mapCard { cursor:pointer; font-family:inherit; text-align:left; color:#cfe0f5;
+    background:rgba(255,255,255,.04); border:2px solid rgba(120,170,255,.18);
+    border-radius:16px; padding:14px 16px; transition:all .15s; }
+  .mapCard:hover { background:rgba(120,170,255,.1); transform:translateY(-2px); }
+  .mapCard.sel { border-color:#7df0b4; background:rgba(125,240,180,.1); }
+  .mapIcon { font-size:26px; margin-bottom:4px; }
+  .mapName { font-weight:800; font-size:15px; color:#e8eef7; margin-bottom:3px; }
+  .mapDesc { font-size:12px; color:#8fa3bd; line-height:1.45; }
+  .mapCard.sel .mapName { color:#7df0b4; }
+
   /* ================= MOBİL DOKUNMATİK KONTROLLER ================= */
   #touchControls { position:fixed; inset:0; pointer-events:none; z-index:8; display:none; }
   body.touch #touchControls { display:block; }
@@ -160,6 +172,7 @@
 
 <div id="hud" class="hidden">
   <div id="topbar">
+    <div class="chip" id="mapChip">🌳 Açık Dünya</div>
     <div class="chip" id="roleChip"><span id="roleTxt">SAKLANAN</span></div>
     <div class="chip" id="timer">⏱ <b id="timeVal">0:00</b></div>
     <div class="chip" id="coinChip">🪙 <b id="coinVal">0</b></div>
@@ -201,6 +214,19 @@
       <span style="color:#7df0b4;font-weight:700">Seviye <span id="menuLevel">1</span></span> &nbsp;·&nbsp;
       <span id="menuStats" style="font-size:13px"></span>
     </p>
+    <h2 style="margin:14px 0 8px">🗺️ Harita Seç</h2>
+    <div class="mapRow" id="mapRow">
+      <button class="mapCard" data-map="open">
+        <div class="mapIcon">🌳</div>
+        <div class="mapName">Açık Dünya</div>
+        <div class="mapDesc">Geniş çayır, ağaçlar ve kulübe. Klasik saklambaç.</div>
+      </button>
+      <button class="mapCard" data-map="parkour">
+        <div class="mapIcon">🧗</div>
+        <div class="mapName">Parkur Diyarı</div>
+        <div class="mapDesc">Platformlar, rampalar ve tuzaklar. Botlar da tırmanır.</div>
+      </button>
+    </div>
     <div class="row">
       <button class="btn primary" id="startBtn">Oyuna Başla</button>
       <button class="btn" id="shopBtn">🛒 Mağaza</button>
@@ -53439,7 +53465,7 @@ const DEFAULT_SAVE = {
   bestScore: 0,
   owned: {},        // id -> seviye
   loadout: {},      // slot -> id|null
-  settings: { sensIdx: 1, invertY: false, bigMap: false },
+  settings: { sensIdx: 1, invertY: false, bigMap: false, map: 'open' },
 };
 
 let save = loadSave();
@@ -53590,232 +53616,31 @@ scene.fog = new THREE.Fog(0x9ed0f5, 55, 130);
 
 const camera = new THREE.PerspectiveCamera(74, innerWidth / innerHeight, 0.06, 400);
 
-// Gökyüzü
-{
-  const c = document.createElement('canvas');
-  c.width = 8; c.height = 256;
-  const ctx = c.getContext('2d');
-  const g = ctx.createLinearGradient(0, 0, 0, 256);
-  g.addColorStop(0, '#3f7fc4'); g.addColorStop(0.45, '#7db8e8');
-  g.addColorStop(0.72, '#b9dcf2'); g.addColorStop(1, '#dfeefb');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 8, 256);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  scene.add(new THREE.Mesh(
-    new THREE.SphereGeometry(220, 24, 16),
-    new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false })
-  ));
-}
+/* ==================== DÜNYA: HARİTA SİSTEMİ ==================== */
+/* İki harita: 1) Açık Dünya (sade)  2) Parkur Diyarı (platform + tuzak) */
 
-scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x5c6b4a, 1.0));
-const sun = new THREE.DirectionalLight(0xfff2d8, 1.9);
-sun.position.set(35, 55, 22);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
-sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
-sun.shadow.camera.far = 160;
-sun.shadow.bias = -0.0008;
-scene.add(sun);
+const MAPS = {
+  open: {
+    id: 'open',
+    name: 'Açık Dünya',
+    icon: '🌳',
+    desc: 'Geniş çayır, ağaçlar, çalılar ve kulübe. Klasik saklambaç.',
+    color: '#7df0b4',
+  },
+  parkour: {
+    id: 'parkour',
+    name: 'Parkur Diyarı',
+    icon: '🧗',
+    desc: 'Yükselen platformlar, atlama rampaları ve tuzaklar. Botlar da tırmanır.',
+    color: '#ffd166',
+  },
+};
 
-// Zemin
-{
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(WORLD * 2.4, WORLD * 2.4),
-    new THREE.MeshStandardMaterial({ color: 0x6f9e57, roughness: 1 })
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
+let currentMap = 'open';
+let worldGroup = null;
 
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#6f9e57'; ctx.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 2600; i++) {
-    const x = Math.random() * 256, y = Math.random() * 256;
-    ctx.fillStyle = Math.random() > 0.5
-      ? `rgba(${120 + Math.random() * 40},${160 + Math.random() * 40},${90 + Math.random() * 30},.5)`
-      : `rgba(${70 + Math.random() * 30},${110 + Math.random() * 30},${60 + Math.random() * 25},.45)`;
-    ctx.fillRect(x, y, 3, 3);
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(26, 26);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  ground.material.map = tex;
-  ground.material.needsUpdate = true;
-  scene.add(ground);
-}
-
-/* ---- materyaller ---- */
-const matTrunk = new THREE.MeshStandardMaterial({ color: 0x6b4a2f, roughness: 0.95 });
-const matLeafA = new THREE.MeshStandardMaterial({ color: 0x3f7a3a, roughness: 0.9 });
-const matLeafB = new THREE.MeshStandardMaterial({ color: 0x4f9147, roughness: 0.9 });
-const matLeafC = new THREE.MeshStandardMaterial({ color: 0x5aa850, roughness: 0.9 });
-const matBush = new THREE.MeshStandardMaterial({ color: 0x3d7d3a, roughness: 0.95 });
-const matRock = new THREE.MeshStandardMaterial({ color: 0x8b8f96, roughness: 0.95 });
-const matWood = new THREE.MeshStandardMaterial({ color: 0x9b6b3f, roughness: 0.85 });
-const matHay = new THREE.MeshStandardMaterial({ color: 0xd8b95a, roughness: 0.95 });
-
-function addTree(x, z, scale = 1) {
-  const g = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28 * scale, 0.42 * scale, 3.4 * scale, 8), matTrunk);
-  trunk.position.y = 1.7 * scale; trunk.castShadow = true; trunk.receiveShadow = true;
-  g.add(trunk);
-  const mats = [matLeafA, matLeafB, matLeafC];
-  for (let i = 0; i < 3; i++) {
-    const blob = new THREE.Mesh(new THREE.SphereGeometry((1.9 - i * 0.42) * scale, 10, 8), mats[i % 3]);
-    blob.position.set((Math.random() - 0.5) * 0.5, (3.4 + i * 1.05) * scale, (Math.random() - 0.5) * 0.5);
-    blob.castShadow = true; g.add(blob);
-  }
-  g.position.set(x, 0, z);
-  scene.add(g);
-  addObstacle(x, z, 0.9 * scale, 0.9 * scale, 3);
-  coverables.push({ x, z, r: 0.55 * scale, type: 'ağaç' });
-}
-
-function addBush(x, z, s = 1) {
-  const g = new THREE.Group();
-  for (let i = 0; i < 4; i++) {
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.75 * s, 9, 7), matBush);
-    b.position.set((Math.random() - 0.5) * 1.3 * s, 0.6 * s + Math.random() * 0.3, (Math.random() - 0.5) * 1.3 * s);
-    b.castShadow = true; b.receiveShadow = true; g.add(b);
-  }
-  g.position.set(x, 0, z);
-  scene.add(g);
-  coverables.push({ x, z, r: 0.9 * s, type: 'çalı' });
-}
-
-function addRock(x, z, s = 1) {
-  const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9 * s, 0), matRock);
-  m.position.set(x, 0.55 * s, z);
-  m.rotation.set(Math.random(), Math.random(), Math.random());
-  m.scale.set(1, 0.75, 1);
-  m.castShadow = true; m.receiveShadow = true;
-  scene.add(m);
-  addObstacle(x, z, 1.5 * s, 1.5 * s, 1.2);
-  coverables.push({ x, z, r: 1.0 * s, type: 'kaya' });
-}
-
-function addCrate(x, z, s = 1) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(1.4 * s, 1.4 * s, 1.4 * s), matWood);
-  m.position.set(x, 0.7 * s, z);
-  m.rotation.y = Math.random();
-  m.castShadow = true; m.receiveShadow = true;
-  scene.add(m);
-  addObstacle(x, z, 1.4 * s, 1.4 * s, 1.4);
-  coverables.push({ x, z, r: 0.9 * s, type: 'sandık' });
-}
-
-function addHay(x, z) {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 1.5, 12), matHay);
-  m.position.set(x, 0.75, z);
-  m.rotation.z = Math.PI / 2;
-  m.rotation.y = Math.random() * Math.PI;
-  m.castShadow = true; m.receiveShadow = true;
-  scene.add(m);
-  addObstacle(x, z, 1.6, 1.6, 1.5);
-  coverables.push({ x, z, r: 1.0, type: 'saman' });
-}
-
-// Çit
-{
-  const fm = new THREE.MeshStandardMaterial({ color: 0x8a6b4a, roughness: 0.9 });
-  for (let i = -WALK; i <= WALK; i += 3.2) {
-    for (const [x, z] of [[i, -WALK], [i, WALK], [-WALK, i], [WALK, i]]) {
-      const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.1, 0.22), fm);
-      p.position.set(x, 1.05, z); p.castShadow = true; scene.add(p);
-    }
-  }
-  for (const y of [0.75, 1.55]) {
-    for (const z of [-WALK, WALK]) {
-      const r = new THREE.Mesh(new THREE.BoxGeometry(WALK * 2, 0.13, 0.13), fm);
-      r.position.set(0, y, z); scene.add(r);
-    }
-    for (const x of [-WALK, WALK]) {
-      const r = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, WALK * 2), fm);
-      r.position.set(x, y, 0); scene.add(r);
-    }
-  }
-}
-
-// Ağaçlar
-const treePositions = [];
-for (let i = 0; i < 46; i++) {
-  let x, z, ok = false, tries = 0;
-  while (!ok && tries++ < 60) {
-    x = (Math.random() * 2 - 1) * (WALK - 3);
-    z = (Math.random() * 2 - 1) * (WALK - 3);
-    if (Math.hypot(x, z) < 7) continue;
-    if (treePositions.some((p) => Math.hypot(p[0] - x, p[1] - z) < 4.2)) continue;
-    ok = true;
-  }
-  if (!ok) continue;
-  treePositions.push([x, z]);
-  addTree(x, z, 0.85 + Math.random() * 0.6);
-}
-
-for (let i = 0; i < 34; i++) {
-  const x = (Math.random() * 2 - 1) * (WALK - 3);
-  const z = (Math.random() * 2 - 1) * (WALK - 3);
-  if (Math.hypot(x, z) < 6) continue;
-  addBush(x, z, 0.8 + Math.random() * 0.6);
-}
-for (let i = 0; i < 16; i++) {
-  const x = (Math.random() * 2 - 1) * (WALK - 4);
-  const z = (Math.random() * 2 - 1) * (WALK - 4);
-  if (Math.hypot(x, z) < 8) continue;
-  addRock(x, z, 0.8 + Math.random() * 0.7);
-}
-for (let i = 0; i < 10; i++) {
-  const x = (Math.random() * 2 - 1) * (WALK - 5);
-  const z = (Math.random() * 2 - 1) * (WALK - 5);
-  if (Math.hypot(x, z) < 7) continue;
-  if (i % 2) addCrate(x, z, 0.9 + Math.random() * 0.4);
-  else addHay(x, z);
-}
-
-// Kulübe
-{
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xc9b79a, roughness: 0.95 });
-  const roofMat = new THREE.MeshStandardMaterial({ color: 0x8a3b3b, roughness: 0.85 });
-  const hut = new THREE.Group();
-  const W = 7, D = 6, H = 2.6, T = 0.35;
-  const mk = (w, h, d, x, y, z) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
-    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; hut.add(m);
-  };
-  mk(W, H, T, 0, H / 2, -D / 2);
-  mk(T, H, D, -W / 2, H / 2, 0);
-  mk(T, H, D, W / 2, H / 2, 0);
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(W + 0.8, 0.3, D + 0.8), roofMat);
-  roof.position.set(0, H + 0.15, 0); roof.castShadow = true; hut.add(roof);
-  hut.position.set(-22, 0, 20);
-  scene.add(hut);
-  addObstacle(-22, 20 - D / 2, W, T, H);
-  addObstacle(-22 - W / 2, 20, T, D, H);
-  addObstacle(-22 + W / 2, 20, T, D, H);
-  coverables.push({ x: -22, z: 20 - D / 2 + 0.9, r: 1.0, type: 'kulübe' });
-}
-
-// Gölet
-{
-  const pond = new THREE.Mesh(
-    new THREE.CircleGeometry(6, 40),
-    new THREE.MeshStandardMaterial({ color: 0x3a7fb5, roughness: 0.15, metalness: 0.35, transparent: true, opacity: 0.9 })
-  );
-  pond.rotation.x = -Math.PI / 2;
-  pond.position.set(24, 0.03, -22);
-  scene.add(pond);
-}
-
-
-/* ==================== PARKUR (platformlar + zıplama) ==================== */
-/* Platformlar: yüksekliği olan, üstüne çıkılabilen kutular */
-const platforms = [];   // {minX,maxX,minZ,maxZ,top}
-const PLATFORM_STEP = 0.55;   // bu kadar yükseklik farkı otomatik tırmanılır
-const GRAVITY = 22;
-const JUMP_V = 8.2;
+/* Platformlar: yüksekliği olan, üstüne çıkılabilen kutular (harita başına sıfırlanır) */
+let platforms = [];
 
 function addPlatform(cx, cz, w, d, top, color) {
   const h = top;
@@ -53829,6 +53654,236 @@ function addPlatform(cx, cz, w, d, top, color) {
   return b;
 }
 
+function buildWorld(mapId = "open") {
+  const isParkour = mapId === 'parkour';
+  // Gökyüzü
+  {
+    const c = document.createElement('canvas');
+    c.width = 8; c.height = 256;
+    const ctx = c.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, '#3f7fc4'); g.addColorStop(0.45, '#7db8e8');
+    g.addColorStop(0.72, '#b9dcf2'); g.addColorStop(1, '#dfeefb');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 8, 256);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    scene.add(new THREE.Mesh(
+      new THREE.SphereGeometry(220, 24, 16),
+      new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false })
+    ));
+  }
+
+  scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x5c6b4a, 1.0));
+  const sun = new THREE.DirectionalLight(0xfff2d8, 1.9);
+  sun.position.set(35, 55, 22);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
+  sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
+  sun.shadow.camera.far = 160;
+  sun.shadow.bias = -0.0008;
+  scene.add(sun);
+
+  // Zemin
+  {
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(WORLD * 2.4, WORLD * 2.4),
+      new THREE.MeshStandardMaterial({ color: 0x6f9e57, roughness: 1 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#6f9e57'; ctx.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 2600; i++) {
+      const x = Math.random() * 256, y = Math.random() * 256;
+      ctx.fillStyle = Math.random() > 0.5
+        ? `rgba(${120 + Math.random() * 40},${160 + Math.random() * 40},${90 + Math.random() * 30},.5)`
+        : `rgba(${70 + Math.random() * 30},${110 + Math.random() * 30},${60 + Math.random() * 25},.45)`;
+      ctx.fillRect(x, y, 3, 3);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(26, 26);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    ground.material.map = tex;
+    ground.material.needsUpdate = true;
+    scene.add(ground);
+  }
+
+  /* ---- materyaller ---- */
+  const matTrunk = new THREE.MeshStandardMaterial({ color: 0x6b4a2f, roughness: 0.95 });
+  const matLeafA = new THREE.MeshStandardMaterial({ color: 0x3f7a3a, roughness: 0.9 });
+  const matLeafB = new THREE.MeshStandardMaterial({ color: 0x4f9147, roughness: 0.9 });
+  const matLeafC = new THREE.MeshStandardMaterial({ color: 0x5aa850, roughness: 0.9 });
+  const matBush = new THREE.MeshStandardMaterial({ color: 0x3d7d3a, roughness: 0.95 });
+  const matRock = new THREE.MeshStandardMaterial({ color: 0x8b8f96, roughness: 0.95 });
+  const matWood = new THREE.MeshStandardMaterial({ color: 0x9b6b3f, roughness: 0.85 });
+  const matHay = new THREE.MeshStandardMaterial({ color: 0xd8b95a, roughness: 0.95 });
+
+  function addTree(x, z, scale = 1) {
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28 * scale, 0.42 * scale, 3.4 * scale, 8), matTrunk);
+    trunk.position.y = 1.7 * scale; trunk.castShadow = true; trunk.receiveShadow = true;
+    g.add(trunk);
+    const mats = [matLeafA, matLeafB, matLeafC];
+    for (let i = 0; i < 3; i++) {
+      const blob = new THREE.Mesh(new THREE.SphereGeometry((1.9 - i * 0.42) * scale, 10, 8), mats[i % 3]);
+      blob.position.set((Math.random() - 0.5) * 0.5, (3.4 + i * 1.05) * scale, (Math.random() - 0.5) * 0.5);
+      blob.castShadow = true; g.add(blob);
+    }
+    g.position.set(x, 0, z);
+    scene.add(g);
+    addObstacle(x, z, 0.9 * scale, 0.9 * scale, 3);
+    coverables.push({ x, z, r: 0.55 * scale, type: 'ağaç' });
+  }
+
+  function addBush(x, z, s = 1) {
+    const g = new THREE.Group();
+    for (let i = 0; i < 4; i++) {
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.75 * s, 9, 7), matBush);
+      b.position.set((Math.random() - 0.5) * 1.3 * s, 0.6 * s + Math.random() * 0.3, (Math.random() - 0.5) * 1.3 * s);
+      b.castShadow = true; b.receiveShadow = true; g.add(b);
+    }
+    g.position.set(x, 0, z);
+    scene.add(g);
+    coverables.push({ x, z, r: 0.9 * s, type: 'çalı' });
+  }
+
+  function addRock(x, z, s = 1) {
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9 * s, 0), matRock);
+    m.position.set(x, 0.55 * s, z);
+    m.rotation.set(Math.random(), Math.random(), Math.random());
+    m.scale.set(1, 0.75, 1);
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
+    addObstacle(x, z, 1.5 * s, 1.5 * s, 1.2);
+    coverables.push({ x, z, r: 1.0 * s, type: 'kaya' });
+  }
+
+  function addCrate(x, z, s = 1) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1.4 * s, 1.4 * s, 1.4 * s), matWood);
+    m.position.set(x, 0.7 * s, z);
+    m.rotation.y = Math.random();
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
+    addObstacle(x, z, 1.4 * s, 1.4 * s, 1.4);
+    coverables.push({ x, z, r: 0.9 * s, type: 'sandık' });
+  }
+
+  function addHay(x, z) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 1.5, 12), matHay);
+    m.position.set(x, 0.75, z);
+    m.rotation.z = Math.PI / 2;
+    m.rotation.y = Math.random() * Math.PI;
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
+    addObstacle(x, z, 1.6, 1.6, 1.5);
+    coverables.push({ x, z, r: 1.0, type: 'saman' });
+  }
+
+  // Çit
+  {
+    const fm = new THREE.MeshStandardMaterial({ color: 0x8a6b4a, roughness: 0.9 });
+    for (let i = -WALK; i <= WALK; i += 3.2) {
+      for (const [x, z] of [[i, -WALK], [i, WALK], [-WALK, i], [WALK, i]]) {
+        const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.1, 0.22), fm);
+        p.position.set(x, 1.05, z); p.castShadow = true; scene.add(p);
+      }
+    }
+    for (const y of [0.75, 1.55]) {
+      for (const z of [-WALK, WALK]) {
+        const r = new THREE.Mesh(new THREE.BoxGeometry(WALK * 2, 0.13, 0.13), fm);
+        r.position.set(0, y, z); scene.add(r);
+      }
+      for (const x of [-WALK, WALK]) {
+        const r = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, WALK * 2), fm);
+        r.position.set(x, y, 0); scene.add(r);
+      }
+    }
+  }
+
+  // Ağaçlar
+  const treePositions = [];
+  const treeCount = isParkour ? 22 : 46;
+  for (let i = 0; i < treeCount; i++) {
+    let x, z, ok = false, tries = 0;
+    while (!ok && tries++ < 60) {
+      x = (Math.random() * 2 - 1) * (WALK - 3);
+      z = (Math.random() * 2 - 1) * (WALK - 3);
+      if (Math.hypot(x, z) < 7) continue;
+      if (treePositions.some((p) => Math.hypot(p[0] - x, p[1] - z) < 4.2)) continue;
+      ok = true;
+    }
+    if (!ok) continue;
+    treePositions.push([x, z]);
+    addTree(x, z, 0.85 + Math.random() * 0.6);
+  }
+
+  for (let i = 0; i < 34; i++) {
+    const x = (Math.random() * 2 - 1) * (WALK - 3);
+    const z = (Math.random() * 2 - 1) * (WALK - 3);
+    if (Math.hypot(x, z) < 6) continue;
+    addBush(x, z, 0.8 + Math.random() * 0.6);
+  }
+  for (let i = 0; i < 16; i++) {
+    const x = (Math.random() * 2 - 1) * (WALK - 4);
+    const z = (Math.random() * 2 - 1) * (WALK - 4);
+    if (Math.hypot(x, z) < 8) continue;
+    addRock(x, z, 0.8 + Math.random() * 0.7);
+  }
+  for (let i = 0; i < 10; i++) {
+    const x = (Math.random() * 2 - 1) * (WALK - 5);
+    const z = (Math.random() * 2 - 1) * (WALK - 5);
+    if (Math.hypot(x, z) < 7) continue;
+    if (i % 2) addCrate(x, z, 0.9 + Math.random() * 0.4);
+    else addHay(x, z);
+  }
+
+  // Kulübe
+  {
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xc9b79a, roughness: 0.95 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x8a3b3b, roughness: 0.85 });
+    const hut = new THREE.Group();
+    const W = 7, D = 6, H = 2.6, T = 0.35;
+    const mk = (w, h, d, x, y, z) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+      m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; hut.add(m);
+    };
+    mk(W, H, T, 0, H / 2, -D / 2);
+    mk(T, H, D, -W / 2, H / 2, 0);
+    mk(T, H, D, W / 2, H / 2, 0);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(W + 0.8, 0.3, D + 0.8), roofMat);
+    roof.position.set(0, H + 0.15, 0); roof.castShadow = true; hut.add(roof);
+    hut.position.set(-22, 0, 20);
+    scene.add(hut);
+    addObstacle(-22, 20 - D / 2, W, T, H);
+    addObstacle(-22 - W / 2, 20, T, D, H);
+    addObstacle(-22 + W / 2, 20, T, D, H);
+    coverables.push({ x: -22, z: 20 - D / 2 + 0.9, r: 1.0, type: 'kulübe' });
+  }
+
+  // Gölet
+  {
+    const pond = new THREE.Mesh(
+      new THREE.CircleGeometry(6, 40),
+      new THREE.MeshStandardMaterial({ color: 0x3a7fb5, roughness: 0.15, metalness: 0.35, transparent: true, opacity: 0.9 })
+    );
+    pond.rotation.x = -Math.PI / 2;
+    pond.position.set(24, 0.03, -22);
+    scene.add(pond);
+  }
+}
+
+/* ==================== PARKUR (platformlar + zıplama) ==================== */
+/* Platformlar: yüksekliği olan, üstüne çıkılabilen kutular */
+// platforms global (aşağıda tanımlı)
+const PLATFORM_STEP = 0.75;   // bu kadar yükseklik farkı otomatik tırmanılır
+const GRAVITY = 22;
+const JUMP_V = 9.6;
+
 /* Zemin yüksekliği: bir noktadaki en yüksek platform */
 function groundHeightAt(x, z, r = 0.35) {
   let h = 0;
@@ -53841,7 +53896,8 @@ function groundHeightAt(x, z, r = 0.35) {
 }
 
 /* Parkur rotası (yukarı doğru sarmal) */
-function buildParkour() {
+
+function buildParkour(offsetX = 0, offsetZ = 0) {
   const start = { x: 20, z: 16 };
   const steps = [
     { dx: 0, dz: -3.2, w: 3.0, d: 3.0, top: 0.9 },
@@ -53851,21 +53907,81 @@ function buildParkour() {
     { dx: -3.0, dz: 2.4, w: 2.2, d: 2.2, top: 4.3 },
     { dx: 0, dz: 3.4, w: 2.4, d: 2.4, top: 5.1 },
     { dx: 3.4, dz: 1.6, w: 2.6, d: 2.6, top: 5.9 },
-    { dx: 3.2, dz: -1.6, w: 3.0, d: 3.0, top: 6.7 },
+    { dx: 3.2, dz: -1.6, w: 3.0, d: 3.0, top: 6.4 },
   ];
-  let x = start.x, z = start.z;
+  let x = start.x + offsetX, z = start.z + offsetZ;
   const colors = [0x9b6b3f, 0x8a7b5a, 0x7a6b8a, 0x6b8a7a, 0x8a6b6b, 0x6b7a8a, 0x9a8a5a, 0x7a8a6b];
   steps.forEach((s, i) => {
     x += s.dx; z += s.dz;
     addPlatform(x, z, s.w, s.d, s.top, colors[i % colors.length]);
   });
   // zirve: küçük bir kule
-  addPlatform(x + 0.4, z - 0.4, 2.2, 2.2, 7.6, 0xffd166);
+  addPlatform(x + 0.2, z - 0.2, 2.6, 2.6, 7.2, 0xffd166);
   return { x, z };
 }
 
-// Parkuru inşa et
-const PARKOUR_TOP = buildParkour();
+/* --- Parkur haritası: ek platformlar + rampalar + tuzak bölgeleri --- */
+function buildParkourExtras() {
+  // Uzun atlama rampaları (giriş)
+  const rampMat = 0x6b7a8a;
+  addPlatform(14, 20, 4.0, 3.0, 0.5, rampMat);
+  addPlatform(9, 21, 3.0, 2.6, 1.2, rampMat);
+  addPlatform(4, 21, 2.6, 2.4, 2.0, rampMat);
+
+  // Yüzen adalar (zıplayarak geçilir)
+  const isles = [
+    [-2, 20, 2.0, 2.4],
+    [-6, 17, 1.8, 2.8],
+    [-9, 13, 1.8, 3.2],
+    [-12, 9, 2.0, 3.6],
+  ];
+  isles.forEach(([x, z, w, h], i) => addPlatform(x, z, w, w, h, 0x7a6b8a));
+
+  // Kuzey kulesi (yüksek gözetleme)
+  addPlatform(-16, -14, 3.4, 3.4, 1.0, 0x8a7b5a);
+  addPlatform(-16, -14, 2.6, 2.6, 2.2, 0x8a7b5a);
+  addPlatform(-16, -14, 1.8, 1.8, 3.4, 0x8a7b5a);
+  addPlatform(-16, -14, 1.2, 1.2, 4.6, 0xffd166);
+
+  // Doğu köprüsü
+  for (let i = 0; i < 5; i++) {
+    addPlatform(12 + i * 0.2, -6 - i * 2.6, 2.2, 2.2, 0.6 + i * 0.55, 0x9b6b3f);
+  }
+}
+
+/* --- Haritayı kur / temizle --- */
+function clearWorld() {
+  if (baselineSet) {
+    for (const obj of baselineSet) if (obj.parent) obj.parent.remove(obj);
+    baselineSet = null;
+  }
+  obstacles.length = 0;
+  coverables.length = 0;
+  platforms.length = 0;
+}
+
+let baselineSet = null;
+
+function buildMap(mapId) {
+  clearWorld();                     // eski haritayı kaldır + listeleri sıfırla
+  const before = new Set(scene.children);
+  buildWorld(mapId);
+  if (mapId === 'parkour') {
+    buildParkour(0, 0);
+    buildParkourExtras();
+  }
+  const added = new Set();
+  for (const c of scene.children) {
+    if (!before.has(c)) added.add(c);
+  }
+  baselineSet = added;
+  currentMap = mapId;
+  return currentMap;
+}
+
+
+// Başlangıç haritası (menüde açık dünya döner)
+buildMap('open');
 
 /* ==================== KARAKTER ==================== */
 function makeCharacter(bodyColor, isSeeker) {
@@ -54330,6 +54446,230 @@ function lerpAngle(a, b, t) {
   return a + d * t;
 }
 
+
+/* ==================== BOTLAR İÇİN PARKUR NAVİGASYONU ==================== */
+/* Platform geçiş grafiği: her platformun 4 kenarından zıplanabilir mi? */
+function platformDistance(a, b) {
+  const ax = (a.minX + a.maxX) / 2, az = (a.minZ + a.maxZ) / 2;
+  const bx = (b.minX + b.maxX) / 2, bz = (b.minZ + b.maxZ) / 2;
+  return Math.hypot(bx - ax, bz - az);
+}
+
+function platformGap(a, b) {
+  // iki platform arasındaki yatay boşluk
+  const dx = Math.max(0, Math.max(a.minX - b.maxX, b.minX - a.maxX));
+  const dz = Math.max(0, Math.max(a.minZ - b.maxZ, b.minZ - a.maxZ));
+  return Math.hypot(dx, dz);
+}
+
+function height(a) { return a.y ?? 0; }
+
+function canJumpBetween(a, b) {
+  // zıplama menzili: yatay 3.2m, yukarı 0.9m
+  const gap = platformGap(a, b);
+  const dy = (b.top ?? 0) - (a.top ?? 0);
+  if (dy > 1.0) return false;
+  if (dy < -4) return false;
+  return gap < 3.2;
+}
+
+/* Bir noktadan hedefe: platform zincirini bul (BFS) */
+function findPlatformPath(fromPos, fromY, targetPos, targetY) {
+  if (!platforms.length) return null;
+  const startPlat = platforms.find((p) =>
+    fromPos.x > p.minX - 0.5 && fromPos.x < p.maxX + 0.5 &&
+    fromPos.z > p.minZ - 0.5 && fromPos.z < p.maxZ + 0.5 &&
+    Math.abs(p.top - fromY) < 0.7
+  );
+  const goalPlat = platforms.find((p) =>
+    targetPos.x > p.minX - 0.5 && targetPos.x < p.maxX + 0.5 &&
+    targetPos.z > p.minZ - 0.5 && targetPos.z < p.maxZ + 0.5 &&
+    Math.abs(p.top - targetY) < 0.7
+  );
+  if (!goalPlat) return null;
+  if (!startPlat) {
+    // zeminden ilk basamağa atla
+    for (const p of platforms) {
+      if (p.top <= 1.0) {
+        const d = Math.hypot((p.minX + p.maxX) / 2 - fromPos.x, (p.minZ + p.maxZ) / 2 - fromPos.z);
+        if (d < 6) return { first: p, path: [], reachGoal: p === goalPlat };
+      }
+    }
+    return null;
+  }
+
+  // BFS
+  const prev = new Map();
+  const visited = new Set([startPlat]);
+  const queue = [startPlat];
+  let found = null;
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === goalPlat) { found = cur; break; }
+    for (const next of platforms) {
+      if (visited.has(next)) continue;
+      if (!canJumpBetween(cur, next)) continue;
+      visited.add(next);
+      prev.set(next, cur);
+      queue.push(next);
+    }
+  }
+
+  if (!found) {
+    // hedefe ulaşılamıyorsa en yakın platforma git
+    let best = null, bestScore = 1e9;
+    for (const p of visited) {
+      const d = Math.hypot(
+        (p.minX + p.maxX) / 2 - targetPos.x,
+        (p.minZ + p.maxZ) / 2 - targetPos.z
+      ) + Math.abs(p.top - targetY) * 0.8;
+      if (d < bestScore) { bestScore = d; best = p; }
+    }
+    if (!best) return null;
+    found = best;
+  }
+
+  // zinciri geri kur
+  const path = [];
+  let node = found;
+  while (node && node !== startPlat) {
+    path.unshift(node);
+    node = prev.get(node);
+  }
+  return { first: path[0] || found, path, reachGoal: found === goalPlat };
+}
+
+/* Botu platform hedefine doğru yönlendir (zıplama dahil) */
+function botNavigatePlatform(n, playerPos, playerY) {
+  const ny = n.y || 0;
+
+  // 1) Bot şu an bir platformun üstünde mi / hangi yükseklikte?
+  // 2) Botun erişebileceği en yakın "bir üst" basamağı bul (rampa mantığı)
+  let best = null, bestScore = 1e9;
+
+  for (const p of platforms) {
+    const cx = (p.minX + p.maxX) / 2;
+    const cz = (p.minZ + p.maxZ) / 2;
+    const dh = p.top - ny;
+
+    // sadece bir adım yukarısı (0.3 - 1.0 m) veya aynı/aşağı seviye
+    if (dh > 1.05) continue;
+
+    const d = Math.hypot(cx - n.pos.x, cz - n.pos.z);
+    if (d > 14) continue;
+
+    // hedefe (oyuncuya) yakınlık + yükseklik kazancı
+    const dToPlayer = Math.hypot(cx - playerPos.x, cz - playerPos.z);
+    let score = d * 0.8 + dToPlayer * 0.5;
+
+    // yukarı çıkmak istiyorsak yüksekliği ödüllendir
+    if (playerY > ny + 0.5 && dh > 0.1) score -= dh * 6;
+    // aşağı inmek istiyorsak alçağı ödüllendir
+    if (playerY < ny - 0.5 && dh < 0) score -= Math.abs(dh) * 3;
+
+    if (score < bestScore) { bestScore = score; best = p; }
+  }
+
+  if (!best) return null;
+
+  // Hedef platformun içindeyse merkeze, değilse en yakın kenara yürü
+  const onIt = n.pos.x > best.minX && n.pos.x < best.maxX && n.pos.z > best.minZ && n.pos.z < best.maxZ;
+  const cx = (best.minX + best.maxX) / 2;
+  const cz = (best.minZ + best.maxZ) / 2;
+  if (onIt) return V(cx, cz);
+
+  // platform kenarına 0.5 m kala dur (zıplama noktası)
+  const clampX = Math.max(best.minX - 0.4, Math.min(n.pos.x, best.maxX + 0.4));
+  const clampZ = Math.max(best.minZ - 0.4, Math.min(n.pos.z, best.maxZ + 0.4));
+  return V(clampX, clampZ);
+}
+
+
+/* Bot tırmanma yolu: mevcut platformdan oyuncunun platformuna en kısa zincir */
+function buildClimbPath(fromPlat, playerPos, playerY) {
+  if (!platforms.length) return null;
+
+  // oyuncunun üstünde durduğu platform
+  const goal = platforms.find((p) =>
+    playerPos.x > p.minX - 1.2 && playerPos.x < p.maxX + 1.2 &&
+    playerPos.z > p.minZ - 1.2 && playerPos.z < p.maxZ + 1.2 &&
+    Math.abs(p.top - playerY) < 0.8
+  ) || platforms.reduce((best, p) => {
+    const d = Math.hypot((p.minX + p.maxX) / 2 - playerPos.x, (p.minZ + p.maxZ) / 2 - playerPos.z);
+    return (!best || d < best.d) ? { p, d } : best;
+  }, null)?.p;
+
+  if (!goal) return null;
+
+  // BFS: sadece bir adım yukarı (<=1.0 m) atlanabilir
+  const start = fromPlat || null;
+  const prev = new Map();
+  const visited = new Set();
+  const queue = [];
+
+  const rel = (s, b) => Math.hypot(
+    (s.minX + s.maxX) / 2 - (b.minX + b.maxX) / 2,
+    (s.minZ + s.maxZ) / 2 - (b.minZ + b.maxZ) / 2
+  );
+
+  const neighbors = (p) => platforms.filter((q) => {
+    if (q === p) return false;
+    const dh = q.top - p.top;
+    if (dh > 1.0 || dh < -3.0) return false;
+    return rel(p, q) < 7.0;
+  });
+
+  if (!start) {
+    // zeminden başla: en yakın alçak platformu kök al
+    const roots = platforms.filter((p) => p.top < 1.2);
+    for (const r of roots) { visited.add(r); queue.push(r); }
+  } else if (start === goal) {
+    return [goal];
+  } else {
+    visited.add(start); queue.push(start);
+  }
+
+  let found = null;
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === goal) { found = cur; break; }
+    for (const nb of neighbors(cur)) {
+      if (visited.has(nb)) continue;
+      visited.add(nb); prev.set(nb, cur); queue.push(nb);
+    }
+  }
+
+  if (!found) {
+    // ulaşılamadı: en yüksek ulaşılabilir platforma kadar git
+    let best = null, bestTop = -1;
+    for (const p of visited) if (p.top > bestTop) { bestTop = p.top; best = p; }
+    found = best;
+    if (!found) return null;
+  }
+
+  // zinciri kur
+  const path = [];
+  let node = found;
+  while (node && node !== start) {
+    path.unshift(node);
+    node = prev.get(node);
+    if (path.length > 30) break;
+  }
+  return path.length ? path : null;
+}
+
+/* Botun erişebileceği, oyuncuya en yakın yüksek platform (yedek hedef) */
+function fallbackClimbTarget(fromY) {
+  let best = null, bestScore = 1e9;
+  for (const p of platforms) {
+    const dh = p.top - fromY;
+    if (dh < 0.2 || dh > 1.0) continue;
+    const score = Math.abs(p.top - fromY - 0.6);
+    if (score < bestScore) { bestScore = score; best = p; }
+  }
+  return best;
+}
+
 /* ==================== NAVİGASYON: ileri görüşlü yol noktası ==================== */
 /* Botlar için: en yakın platform rampasını bul (parkura tırmanmak için) */
 function nearestPlatformRamp(from, to) {
@@ -54390,7 +54730,7 @@ function spawnNPC(role, awayFrom, minD) {
     target: randomFreePoint(p, 6),
     speed: 2.6, seeT: 0, loseT: 0, lastSeen: null,
     searchT: 0, searchCenter: null, wanderT: rnd(0, 3),
-    caught: false, frozen: 0, slip: 0, y: 0, vy: 0, grounded: true,
+    caught: false, frozen: 0, slip: 0, y: 0, vy: 0, grounded: true, wantsJump: false, jumpCd: 0, climbTarget: null, climbT2: 0,
     // AI hafızası
     memory: [],           // son görülen noktalar
     suspicious: null,     // şüpheli nokta
@@ -54416,7 +54756,10 @@ function clearNPCs() {
 }
 
 /* ==================== TUR ==================== */
-function startRound(forceRole = null) {
+function startRound(forceRole = null, mapId = null) {
+  if (mapId) save.settings.map = mapId;
+  const useMap = mapId || save.settings.map || 'open';
+  buildMap(useMap);
   clearNPCs();
   state.role = forceRole ?? (Math.random() < 0.70 ? 'hider' : 'seeker');
   state.round++;
@@ -54432,10 +54775,14 @@ function startRound(forceRole = null) {
   player.sprintT = 0; player.sprintCd = 0; player.sprintMult = 1;
   player.y = 0; player.vy = 0; player.grounded = true; player.wantJump = false;
 
-  player.pos.set(0, 0, 0);
+  // haritaya göre doğuş
+  if (useMap === 'parkour') player.pos.set(20, 0, 14);
+  else player.pos.set(0, 0, 0);
   let t = 0;
   while (collides(player.pos.x, player.pos.z, 0.6) && t++ < 60) player.pos.copy(randomFreePoint());
   player.yaw = Math.PI;
+  player.y = groundHeightAt(player.pos.x, player.pos.z, 0.35);
+  player.vy = 0;
 
   abilityCd = [0, 0];
 
@@ -54447,6 +54794,11 @@ function startRound(forceRole = null) {
     for (let i = 0; i < 3; i++) spawnNPC('hider', player.pos, 14);
   }
 
+  const mapChip = $('mapChip');
+  if (mapChip) {
+    const m = MAPS[currentMap] || MAPS.open;
+    mapChip.textContent = m.icon + ' ' + m.name;
+  }
   $('roleChip').className = 'chip ' + state.role;
   $('roleTxt').textContent = state.role === 'hider' ? 'SAKLANAN' : 'EBE';
   document.body.classList.toggle('seeker', state.role === 'seeker');
@@ -54499,7 +54851,7 @@ const TRAP_ITEMS = [
 ];
 
 function prepTraps() {
-  trapPoints.n = 0;
+  trapPoints.n = currentMap === 'parkour' ? 40 : 0;    // parkurda başlangıç bonusu
   trapPointsTotal = 0;
   trapInv.net = 0; trapInv.banana = 0; trapInv.decoy = 0;
   netFreeze = 4; bananaSlip = 2; decoyLife = 5;
@@ -54930,8 +55282,10 @@ function updateSeekerNPC(n, dt) {
 
   const inCone = cosAngle > (dist < 6 ? 0.1 : 0.3);   // yakında daha geniş görüş
   const los = hasLOS(n.pos.x, n.pos.z, player.pos.x, player.pos.z);
-  const heightDiff = Math.abs((n.y || 0) - (player.y || 0));
-  const canSee = !inSmoke && dist < range && inCone && los && heightDiff < 4.5;
+  let heightDiff = Math.abs((n.y || 0) - (player.y || 0));
+  // oyuncu platformdaysa ve bot aşağıdaysa: tırmanmaya çalışsın, görüş engellenmesin
+  if (currentMap === 'parkour' && (player.y || 0) > 0.8) heightDiff = 0;
+  const canSee = !inSmoke && dist < range && inCone && los && heightDiff < 7.5;
 
   // --- görüş ---
   if (canSee) {
@@ -55003,13 +55357,101 @@ function updateSeekerNPC(n, dt) {
   }
 
   // --- durum makinesi ---
+  n.wantsJump = false;
+
+  // parkurda: oyuncu belirgin şekilde yukarıdaysa tırmanma moduna geç
+  if (n.climbCooldown > 0) n.climbCooldown -= dt;
+  if (currentMap === 'parkour' && platforms.length && (player.y || 0) > (n.y || 0) + 0.8 &&
+      dist < 45 && (n.climbCooldown || 0) <= 0 && n.state !== 'climb') {
+    n.state = 'climb'; n.climbPath = null; n.climbT = 0;
+  }
+  if (n.state === 'climb') {
+    n.climbT = (n.climbT || 0) + dt;
+    const ny = n.y || 0;
+
+    // OYUNCU artık aşağıdaysa tırmanmayı bırak
+    if ((player.y || 0) <= ny + 0.5) {
+      n.state = 'chase';
+      n.climbTarget = null;
+      n.climbT = 0;
+      moveNPC(n, dt);
+      return;
+    }
+
+    // hedef platform: bir üst basamak (0.25 - 1.0 m yukarı), oyuncuya doğru
+    const targetInvalid = !n.climbTarget ||
+      Math.abs(n.climbTarget.top - ny) < 0.15 ||
+      n.climbTarget.top < ny - 1.0;
+
+    if (targetInvalid) {
+      let best = null, bestScore = 1e9;
+      for (const p of platforms) {
+        const dh = p.top - ny;
+        if (dh < 0.25 || dh > 1.0) continue;
+        const cx = (p.minX + p.maxX) / 2, cz = (p.minZ + p.maxZ) / 2;
+        const d = Math.hypot(cx - n.pos.x, cz - n.pos.z);
+        if (d > 12) continue;
+        const dp = Math.hypot(cx - player.pos.x, cz - player.pos.z);
+        const score = d * 1.2 + dp * 0.8;
+        if (score < bestScore) { bestScore = score; best = p; }
+      }
+      n.climbTarget = best;
+    }
+
+    const t = n.climbTarget;
+    if (t) {
+      const cx = (t.minX + t.maxX) / 2, cz = (t.minZ + t.maxZ) / 2;
+
+      // platformun en yakın noktası
+      const nearX = Math.max(t.minX, Math.min(n.pos.x, t.maxX));
+      const nearZ = Math.max(t.minZ, Math.min(n.pos.z, t.maxZ));
+      const distToEdge = Math.hypot(n.pos.x - nearX, n.pos.z - nearZ);
+      const distToCenter = Math.hypot(n.pos.x - cx, n.pos.z - cz);
+
+      // doğrudan platform merkezine yürü (smartWaypoint platformu engel sanıyor)
+      n.target = V(cx, cz);
+      n.speed = 3.4;
+
+      // kenara 1.8 m kaldıysa zıpla (zıplama menzili ~1.5 m yatay, 1.0 m dikey)
+      const needUp = t.top > ny + 0.25;
+      // zıplama: kenara yaklaştıysa VEYA merkeze 2.6 m'den yakınsa
+      if (needUp && n.grounded && (distToEdge < 2.6 || distToCenter < 3.0)) {
+        n.wantsJump = true;
+        n.forceJump = true;
+      }
+    } else {
+      // yukarı çıkacak platform yok → oyuncuya doğru yürü
+      n.target = V(player.pos.x, player.pos.z);
+      n.speed = 3.2;
+    }
+
+    // 18 sn'den fazla sürdüyse bırak
+    if (n.climbT > 18) {
+      n.state = 'chase';
+      n.climbTarget = null;
+      n.climbT = 0;
+      n.climbCooldown = 4;
+    }
+
+    moveNPC(n, dt);
+
+    if (dist < 1.45 && Math.abs((n.y || 0) - (player.y || 0)) < 1.3) {
+      endRound(false, 'Ebe seni platformda yakaladı!');
+    }
+    return;
+  }
+
   if (n.state === 'chase') {
-    // oyuncu yüksek bir platformdaysa önce oraya tırman
-    const playerHigh = (player.y || 0) > (n.y || 0) + 0.8;
-    if (playerHigh) {
-      const ramp = nearestPlatformRamp(n.pos, player.pos);
-      if (ramp && Math.hypot(ramp.x - n.pos.x, ramp.z - n.pos.z) > 1.2) {
-        n.target = smartWaypoint(n.pos, V(ramp.x, ramp.z));
+    const playerHigh = (player.y || 0) > (n.y || 0) + 0.6;
+
+    const onPlatform = currentMap === 'parkour' && platforms.length > 0;
+
+    if (onPlatform && playerHigh) {
+      // platform yol bulucu ile en kısa tırmanma rotası
+      const navTarget = botNavigatePlatform(n, player.pos, player.y || 0);
+      if (navTarget) {
+        n.target = navTarget;
+        n.wantsJump = true;
       } else {
         n.target = smartWaypoint(n.pos, player.pos);
       }
@@ -55133,10 +55575,53 @@ function moveNPC(n, dt) {
   const wantYaw = Math.atan2(-to.x, -to.z);
   n.yaw = lerpAngle(n.yaw, wantYaw, Math.min(1, dt * 8));
 
-  // dikey fizik (botlar da platformlara çıkabilir)
+  // platform kenarında hedef daha yüksekse zıplama isteği
+  if (currentMap === 'parkour' && n.grounded && n.jumpCd <= 0 && n.target) {
+    const tg = groundHeightAt(n.target.x, n.target.z, 0.25);
+    if (tg > (n.y || 0) + 0.3) n.wantsJump = true;
+  }
+
+  // havada itiş (zıplarken hedefe doğru kayma)
+  if (n.airPush && n.airPush.t > 0) {
+    n.airPush.t -= dt;
+    moveEntity(n, n.airPush.x * 4.2 * dt, n.airPush.z * 4.2 * dt, 0.4);
+  }
+
+  // dikey fizik (botlar da platformlara çıkabilir ve zıplayabilir)
   n.y = n.y ?? 0; n.vy = n.vy ?? 0;
-  const g = groundHeightAt(n.pos.x, n.pos.z, 0.3);
+  let g = groundHeightAt(n.pos.x, n.pos.z, 0.3);
+  // coyote time: havada ama az önce platformdaydıysa düşüşü geciktir
+  if (n.y > g + 0.05 && (n.coyote || 0) > 0) {
+    n.coyote -= dt;
+    g = n.y;                      // yüksekliği koru
+  } else if (n.y <= g + 0.05) {
+    n.coyote = 0.28;
+  }
   if (n.y < g && g - n.y <= PLATFORM_STEP + 0.35) { n.y = g; n.vy = 0; n.grounded = true; }
+
+  // bot zıplama: hedefe doğru, hedef daha yüksekse veya önde yükselti varsa
+  if (n.wantsJump && n.grounded && (n.jumpCd || 0) <= 0) {
+    const ahead = V(n.pos.x + Math.sin(-n.yaw) * 1.2, n.pos.z + Math.cos(-n.yaw) * 1.2);
+    const aheadGround = groundHeightAt(ahead.x, ahead.z, 0.25);
+    const tgtGround = n.target ? groundHeightAt(n.target.x, n.target.z, 0.25) : 0;
+    const needUp = n.forceJump || tgtGround > (n.y || 0) + 0.25 || aheadGround > (n.y || 0) + 0.25;
+    n.forceJump = false;
+    if (needUp) {
+      n.vy = JUMP_V * 1.02;
+      n.grounded = false;
+      n.jumpCd = 0.45;
+      n.jumps = (n.jumps || 0) + 1;
+      // havada hedefe doğru itiş (kenara yetişmek için)
+      if (n.target) {
+        const dx = n.target.x - n.pos.x, dz = n.target.z - n.pos.z;
+        const dl = Math.hypot(dx, dz) || 1;
+        n.airPush = { x: dx / dl, z: dz / dl, t: 0.45 };
+      }
+    }
+    n.wantsJump = false;
+  }
+  if (n.jumpCd > 0) n.jumpCd -= dt;
+
   n.vy -= GRAVITY * dt;
   n.y += n.vy * dt;
   if (n.y <= g) { n.y = g; n.vy = 0; n.grounded = true; } else n.grounded = false;
@@ -55375,6 +55860,25 @@ function toMenu() {
 }
 
 /* ==================== ARAYÜZ RENDER ==================== */
+/* ==================== HARİTA SEÇİMİ ==================== */
+function renderMapCards() {
+  const row = $('mapRow');
+  if (!row) return;
+  const sel = (save.settings.map || 'open');
+  row.querySelectorAll('[data-map]').forEach((b) => {
+    b.classList.toggle('sel', b.dataset.map === sel);
+  });
+}
+
+function selectMap(id) {
+  if (!MAPS[id]) return;
+  save.settings.map = id;
+  persist();
+  renderMapCards();
+  buildMap(id);
+  toast(MAPS[id].name, MAPS[id].desc, MAPS[id].color, 1400);
+}
+
 function renderMenuStats() {
   $('menuCoins').textContent = save.coins;
   $('menuLevel').textContent = save.level;
@@ -55528,8 +56032,8 @@ function on(id, fn) {
   });
 }
 
-on('startBtn', () => startRound());
-on('nextBtn', () => startRound());
+on('startBtn', () => startRound(null, save.settings.map || 'open'));
+on('nextBtn', () => startRound(null, save.settings.map || 'open'));
 on('menuBtn', () => toMenu());
 on('resumeBtn', () => resumeGame());
 on('quitBtn', () => toMenu());
@@ -55541,6 +56045,16 @@ on('shopBack', () => {
   else { $('endScreen').classList.remove('hidden'); }
 });
 on('installBtn', () => installApp());
+(function bindMapCards() {
+  const row = $('mapRow');
+  if (!row) return;
+  row.querySelectorAll('[data-map]').forEach((b) => {
+    b.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      selectMap(b.dataset.map);
+    });
+  });
+})();
 on('loadoutBtn', () => { renderLoadout(); $('menu').classList.add('hidden'); $('loadout').classList.remove('hidden'); });
 on('loadoutBack', () => { $('loadout').classList.add('hidden'); $('menu').classList.remove('hidden'); });
 
@@ -55571,6 +56085,7 @@ try {
   applySensLabel();
   applyMapSize();
   renderMenuStats();
+  renderMapCards();
   renderShop();
   renderAbilities();
   setupTouch();
@@ -55581,8 +56096,13 @@ try {
 }
 
 // hata ayıklama / test
+window.__api = { updatePlayer, updateSeekerNPC, updateHiderNPC, updateTraps, updateSmoke, updateHUD, findPlatformPath, canJumpBetween, groundHeightAt };
+
 window.__game = {
   state, player, npcs, traps, coverables, obstacles, SHOP,
+  get platforms() { return platforms; },
+  get currentMap() { return currentMap; },
+  buildMap, selectMap, MAPS,
   startRound, placeTrap, useAbility, buyItem, endRound, buyTrap, openTrapShop, cycleTrap,
   get save() { return save; },
   get trapInv() { return trapInv; },
