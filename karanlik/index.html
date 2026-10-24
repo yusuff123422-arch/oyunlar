@@ -53805,6 +53805,7 @@ const CFG = {
   volume: 0.8,
   scares: true,
   quality: 'mid',
+  testMode: false,
   eye: 1.62,
   speed: 3.1,
   runSpeed: 5.6,
@@ -55215,7 +55216,7 @@ function startGame() {
   player.stamina = 100;
 
   // YARATIK: 55 saniye sonra kesin gelir
-  state.monsterTimer = 45;
+  state.monsterTimer = (CFG.testMode ? 0.1 : 45);
   state.monsterForced = false;
 
   // yaratık sıfırla
@@ -55247,8 +55248,22 @@ function startGame() {
 
 /* ==================== UI ==================== */
 $('startBtn').onclick = () => {
+  CFG.testMode = false;
   $('menu').classList.add('hidden');
   $('headphones').classList.remove('hidden');
+};
+
+$('testBtn').onclick = () => {
+  // TEST: kulaklık ekranını atla, yaratık anında gelsin, jump scare hemen çıksın
+  CFG.testMode = true;
+  $('menu').classList.add('hidden');
+  $('headphones').classList.add('hidden');
+  startGame();
+  setTimeout(() => {
+    if (!state.monsterAwake) wakeMonster();
+    fullscreenScare(2.4);
+    say('TEST MODU · Yaratık anında geliyor', 3000);
+  }, 600);
 };
 $('hpContinue').onclick = () => {
   $('headphones').classList.add('hidden');
