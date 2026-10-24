@@ -54575,6 +54575,10 @@ function updateMonster(dt) {
   m.mesh.position.set(m.pos.x, 0, m.pos.z);
   m.mesh.visible = true;
   m.mesh.scale.setScalar(1);
+  if (m.testLight && m.testLight.visible) {
+    m.testLight.position.set(m.pos.x, 2.2, m.pos.z);
+    m.testLight.intensity = 7 + Math.sin(state.time * 3) * 2;
+  }
 
   animateMonster(dt, m.speed);
 
@@ -54780,24 +54784,59 @@ function wakeMonster(silent = false) {
   monster.mesh.visible = true;
   monster.state = 'hunt';
 
-  // oyuncuya 10-14 m mesafede, görüş hattı KAPALI bir noktaya koy
+  // TEST MODU: tam karşında, 4.5 metre, görüş hattı açık
   let placed = false;
-  for (let i = 0; i < 40; i++) {
-    const ang = Math.random() * Math.PI * 2;
-    const dist = 10 + Math.random() * 5;
-    const nx = player.pos.x + Math.cos(ang) * dist;
-    const nz = player.pos.z + Math.sin(ang) * dist;
-    if (nx < -19 || nx > 19 || nz < -19 || nz > 19) continue;
-    if (collides(nx, nz, 0.6)) continue;
-    if (hasLOS(nx, nz, player.pos.x, player.pos.z)) continue;  // gözükmeyen yer
-    monster.pos.set(nx, 0, nz);
-    placed = true;
-    break;
+  if (CFG.testMode) {
+    const fwdX = -Math.sin(player.yaw);
+    const fwdZ = -Math.cos(player.yaw);
+    for (const d of [4.5, 3.5, 5.5, 6.5, 2.5]) {
+      const nx = player.pos.x + fwdX * d;
+      const nz = player.pos.z + fwdZ * d;
+      if (nx < -19.5 || nx > 19.5 || nz < -19.5 || nz > 19.5) continue;
+      if (collides(nx, nz, 0.7)) continue;
+      monster.pos.set(nx, 0, nz);
+      placed = true;
+      break;
+    }
   }
-  if (!placed) monster.pos.set(player.pos.x + 12, 0, player.pos.z + 12);
+
+  // normal mod: oyuncuya 10-14 m mesafede, görüş hattı KAPALI bir noktaya koy
+  if (!placed) {
+    for (let i = 0; i < 40; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 10 + Math.random() * 5;
+      const nx = player.pos.x + Math.cos(ang) * dist;
+      const nz = player.pos.z + Math.sin(ang) * dist;
+      if (nx < -19 || nx > 19 || nz < -19 || nz > 19) continue;
+      if (collides(nx, nz, 0.6)) continue;
+      if (hasLOS(nx, nz, player.pos.x, player.pos.z)) continue;  // gözükmeyen yer
+      monster.pos.set(nx, 0, nz);
+      placed = true;
+      break;
+    }
+  }
+  if (!placed) {
+    const fwdX = -Math.sin(player.yaw), fwdZ = -Math.cos(player.yaw);
+    monster.pos.set(player.pos.x + fwdX * 5, 0, player.pos.z + fwdZ * 5);
+  }
 
   monster.lastSeen = player.pos.clone();
   monster.mesh.position.set(monster.pos.x, 0, monster.pos.z);
+  // yüzünü oyuncuya dön
+  const dx = player.pos.x - monster.pos.x;
+  const dz = player.pos.z - monster.pos.z;
+  monster.mesh.rotation.y = Math.atan2(-dx, -dz);
+  if (CFG.testMode) {
+    monster.state = 'chase';
+    monster.speed = 2.5;
+    monster.aggro = 0.6;
+    // TEST: yaratığı aydınlatan ışık ekle (karanlıkta göremiyorsun)
+    if (!monster.testLight) {
+      monster.testLight = new THREE.PointLight(0xffe0c0, 8, 14, 2);
+      scene.add(monster.testLight);
+    }
+    monster.testLight.visible = true;
+  }
 
   if (silent) return;
   Audio2.growl();
@@ -55166,9 +55205,13 @@ $('testBtn').onclick = () => {
   startGame();
   setTimeout(() => {
     if (!state.monsterAwake) wakeMonster();
-    fullscreenScare(2.4);
-    say('TEST MODU · Yaratık anında geliyor', 3000);
-  }, 600);
+    say('İşte orada!', 2500);
+    // yaratığı 3 saniye gör, sonra jump scare patlasın
+    setTimeout(() => {
+      fullscreenScare(2.4);
+      say('TEST MODU · Yaratık karşında', 3000);
+    }, 3000);
+  }, 500);
 };
 $('hpContinue').onclick = () => {
   $('headphones').classList.add('hidden');
