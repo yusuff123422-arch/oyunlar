@@ -219,12 +219,12 @@
       <button class="mapCard" data-map="open">
         <div class="mapIcon">🌳</div>
         <div class="mapName">Açık Dünya</div>
-        <div class="mapDesc">Geniş çayır, ağaçlar ve kulübe. Klasik saklambaç.</div>
+        <div class="mapDesc">Geniş çayır, 46 ağaç, çalılar ve kulübe. Klasik saklambaç.</div>
       </button>
       <button class="mapCard" data-map="parkour">
         <div class="mapIcon">🧗</div>
         <div class="mapName">Parkur Diyarı</div>
-        <div class="mapDesc">Platformlar, rampalar ve tuzaklar. Botlar da tırmanır.</div>
+        <div class="mapDesc">28 platform, ip köprüsü, kule, bayraklar ve zıplama halkaları. Botlar da tırmanır.</div>
       </button>
     </div>
     <div class="row">
@@ -53881,8 +53881,8 @@ function buildWorld(mapId = "open") {
 /* Platformlar: yüksekliği olan, üstüne çıkılabilen kutular */
 // platforms global (aşağıda tanımlı)
 const PLATFORM_STEP = 0.75;   // bu kadar yükseklik farkı otomatik tırmanılır
-const GRAVITY = 22;
-const JUMP_V = 9.6;
+const GRAVITY = 21;
+const JUMP_V = 10.4;
 
 /* Zemin yüksekliği: bir noktadaki en yüksek platform */
 function groundHeightAt(x, z, r = 0.35) {
@@ -53895,58 +53895,231 @@ function groundHeightAt(x, z, r = 0.35) {
   return h;
 }
 
-/* Parkur rotası (yukarı doğru sarmal) */
+/* ==================== DETAYLI PARKUR ==================== */
+/* Temalı platformlar + dekoratif detaylar (bayrak, ip, fener, tahta, taş) */
+
+const matWoodPlank = new THREE.MeshStandardMaterial({ color: 0x9b6b3f, roughness: 0.85 });
+const matStone = new THREE.MeshStandardMaterial({ color: 0x8d9299, roughness: 0.95 });
+const matMetal = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.4, metalness: 0.65 });
+const matFlagRed = new THREE.MeshStandardMaterial({ color: 0xd9453b, roughness: 0.8, side: THREE.DoubleSide });
+const matFlagYellow = new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.8, side: THREE.DoubleSide });
+const matRope = new THREE.MeshStandardMaterial({ color: 0xc9b48a, roughness: 0.95 });
+const matLantern = new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xffc94d, emissiveIntensity: 1.6 });
+const matGrassTop = new THREE.MeshStandardMaterial({ color: 0x5c9e4e, roughness: 1 });
+
+/* Platform üstüne çim/tahta kaplama + dekor */
+function decoratePlatform(p, style = 'wood') {
+  const cx = (p.minX + p.maxX) / 2;
+  const cz = (p.minZ + p.maxZ) / 2;
+  const w = p.maxX - p.minX, d = p.maxZ - p.minZ;
+
+  // üst kaplama
+  if (style === 'grass') {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(w * 0.96, 0.06, d * 0.96), matGrassTop);
+    top.position.set(cx, p.top + 0.03, cz);
+    top.receiveShadow = true;
+    scene.add(top);
+  } else if (style === 'wood') {
+    const plankW = w / 4;
+    for (let i = 0; i < 4; i++) {
+      const pl = new THREE.Mesh(new THREE.BoxGeometry(plankW * 0.9, 0.055, d * 0.94), matWoodPlank);
+      pl.position.set(p.minX + plankW * (i + 0.5), p.top + 0.028, cz);
+      pl.receiveShadow = true;
+      scene.add(pl);
+    }
+  }
+
+  // kenar taşları
+  if (w > 1.8) {
+    for (const sx of [-1, 1]) {
+      const s1 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, d * 0.98), matStone);
+      s1.position.set(cx + sx * (w / 2 - 0.1), p.top + 0.06, cz);
+      scene.add(s1);
+    }
+  }
+  return { cx, cz, w, d };
+}
+
+function addFlag(cx, cz, y, color = matFlagRed) {
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.5, 6), matMetal);
+  pole.position.set(cx, y + 0.75, cz);
+  pole.castShadow = true;
+  scene.add(pole);
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.34), color);
+  flag.position.set(cx + 0.29, y + 1.32, cz);
+  scene.add(flag);
+  return { flag, pole };
+}
+
+function addLantern(cx, cz, y) {
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 6), matWoodPlank);
+  post.position.set(cx, y + 0.55, cz);
+  scene.add(post);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), matLantern);
+  bulb.position.set(cx, y + 1.12, cz);
+  scene.add(bulb);
+  const light = new THREE.PointLight(0xffc94d, 6, 7, 2);
+  light.position.set(cx, y + 1.12, cz);
+  scene.add(light);
+  return light;
+}
+
+function addRopeBridge(fromP, toP) {
+  const ax = (fromP.minX + fromP.maxX) / 2, az = (fromP.minZ + fromP.maxZ) / 2;
+  const bx = (toP.minX + toP.maxX) / 2, bz = (toP.minZ + toP.maxZ) / 2;
+  const ay = fromP.top, by = toP.top;
+  const segs = 7;
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    const x = ax + (bx - ax) * t;
+    const z = az + (bz - az) * t;
+    const y = ay + (by - ay) * t;
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.06, 0.34), matWoodPlank);
+    plank.position.set(x, y + 0.03, z);
+    plank.lookAt(bx, by + 0.03, bz);
+    plank.receiveShadow = true;
+    scene.add(plank);
+  }
+  // ipler
+  for (const side of [-1, 1]) {
+    const ropeGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(ax + side * 0.34, ay + 0.7, az),
+      new THREE.Vector3(ax + (bx - ax) / 2 + side * 0.34, (ay + by) / 2 + 0.55, az + (bz - az) / 2),
+      new THREE.Vector3(bx + side * 0.34, by + 0.7, bz),
+    ]);
+    const rope = new THREE.Line(ropeGeo, new THREE.LineBasicMaterial({ color: 0xc9b48a }));
+    scene.add(rope);
+  }
+}
+
+/* Zıplama halkası (geçilince puan) */
+const jumpRings = [];
+function addJumpRing(cx, cy, cz, radius = 0.85) {
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(radius, 0.07, 8, 22),
+    new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffa500, emissiveIntensity: 1.3 })
+  );
+  ring.position.set(cx, cy, cz);
+  ring.rotation.x = Math.PI / 2;
+  scene.add(ring);
+  jumpRings.push({ x: cx, y: cy, z: cz, mesh: ring, radius, done: false });
+  return ring;
+}
 
 function buildParkour(offsetX = 0, offsetZ = 0) {
-  const start = { x: 20, z: 16 };
+  const startX = 20 + offsetX, startZ = 16 + offsetZ;
+
+  /* ---- ANA PARKUR: 10 basamak, temalı ---- */
   const steps = [
-    { dx: 0, dz: -3.2, w: 3.0, d: 3.0, top: 0.9 },
-    { dx: 3.2, dz: -3.4, w: 2.6, d: 2.6, top: 1.8 },
-    { dx: 3.0, dz: -3.6, w: 2.4, d: 2.4, top: 2.7 },
-    { dx: -3.2, dz: -3.0, w: 2.2, d: 2.2, top: 3.5 },
-    { dx: -3.0, dz: 2.4, w: 2.2, d: 2.2, top: 4.3 },
-    { dx: 0, dz: 3.4, w: 2.4, d: 2.4, top: 5.1 },
-    { dx: 3.4, dz: 1.6, w: 2.6, d: 2.6, top: 5.9 },
-    { dx: 3.2, dz: -1.6, w: 3.0, d: 3.0, top: 6.4 },
+    { dx: 0,    dz: -2.6, w: 3.4, d: 3.4, top: 0.8,  style: 'grass' },
+    { dx: 2.8,  dz: -2.8, w: 3.0, d: 3.0, top: 1.6,  style: 'wood'  },
+    { dx: 2.6,  dz: -2.9, w: 2.8, d: 2.8, top: 2.4,  style: 'stone' },
+    { dx: -2.8, dz: -2.6, w: 2.6, d: 2.6, top: 3.2,  style: 'wood'  },
+    { dx: -2.7, dz: 2.3,  w: 2.6, d: 2.6, top: 4.0,  style: 'stone' },
+    { dx: 0,    dz: 2.9,  w: 2.8, d: 2.8, top: 4.8,  style: 'wood'  },
+    { dx: 2.9,  dz: 1.3,  w: 3.0, d: 3.0, top: 5.6,  style: 'grass' },
+    { dx: 2.6,  dz: -1.2, w: 2.8, d: 2.8, top: 6.4,  style: 'wood'  },
+    { dx: -1.6, dz: -2.2, w: 2.6, d: 2.6, top: 7.1,  style: 'stone' },
   ];
-  let x = start.x + offsetX, z = start.z + offsetZ;
-  const colors = [0x9b6b3f, 0x8a7b5a, 0x7a6b8a, 0x6b8a7a, 0x8a6b6b, 0x6b7a8a, 0x9a8a5a, 0x7a8a6b];
-  steps.forEach((s, i) => {
+
+  const colors = { grass: 0x6b8f5a, wood: 0x9b6b3f, stone: 0x8d9299 };
+  let x = startX, z = startZ;
+  const built = [];
+
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
     x += s.dx; z += s.dz;
-    addPlatform(x, z, s.w, s.d, s.top, colors[i % colors.length]);
-  });
-  // zirve: küçük bir kule
-  addPlatform(x + 0.2, z - 0.2, 2.6, 2.6, 7.2, 0xffd166);
+    const p = addPlatform(x, z, s.w, s.d, s.top, colors[s.style]);
+    decoratePlatform(p, s.style);
+    built.push(p);
+
+    // her 3 basamakta bir bayrak
+    if (i % 3 === 1) addFlag(x - s.w * 0.3, z - s.d * 0.3, s.top, i % 2 ? matFlagRed : matFlagYellow);
+    // her 2 basamakta fener
+    if (i % 2 === 0 && i > 0) addLantern(x + s.w * 0.3, z + s.d * 0.3, s.top);
+  }
+
+  /* ---- ZİRVE KULESİ ---- */
+  const topP = addPlatform(x + 0.3, z - 0.3, 3.0, 3.0, 7.9, 0xffd166);
+  decoratePlatform(topP, 'wood');
+  addFlag(x + 0.3, z - 0.3, 7.9, matFlagYellow);
+  const crown = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.32, 0),
+    new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xff9f1c, emissiveIntensity: 1.1, metalness: 0.6, roughness: 0.25 })
+  );
+  crown.position.set(x + 0.3, 8.7, z - 0.3);
+  crown.castShadow = true;
+  scene.add(crown);
+  jumpRings.push({ x: x + 0.3, y: 8.7, z: z - 0.3, mesh: crown, radius: 0.9, done: true });
+
+  /* ---- İP KÖPRÜSÜ (4. basamak → 5. basamak) ---- */
+  if (built.length > 5) addRopeBridge(built[3], built[4]);
+
+  /* ---- ZIPLAMA HALKALARI (havada toplanır) ---- */
+  addJumpRing((built[1].minX + built[1].maxX) / 2, built[1].top + 1.3, (built[1].minZ + built[1].maxZ) / 2, 0.8);
+  addJumpRing((built[4].minX + built[4].maxX) / 2, built[4].top + 1.4, (built[4].minZ + built[4].maxZ) / 2, 0.85);
+  addJumpRing((built[7].minX + built[7].maxX) / 2, built[7].top + 1.5, (built[7].minZ + built[7].maxZ) / 2, 0.9);
+
   return { x, z };
 }
 
-/* --- Parkur haritası: ek platformlar + rampalar + tuzak bölgeleri --- */
+/* --- Parkur haritası: ek platformlar + rampalar --- */
 function buildParkourExtras() {
-  // Uzun atlama rampaları (giriş)
-  const rampMat = 0x6b7a8a;
-  addPlatform(14, 20, 4.0, 3.0, 0.5, rampMat);
-  addPlatform(9, 21, 3.0, 2.6, 1.2, rampMat);
-  addPlatform(4, 21, 2.6, 2.4, 2.0, rampMat);
-
-  // Yüzen adalar (zıplayarak geçilir)
-  const isles = [
-    [-2, 20, 2.0, 2.4],
-    [-6, 17, 1.8, 2.8],
-    [-9, 13, 1.8, 3.2],
-    [-12, 9, 2.0, 3.6],
+  // Giriş rampaları (yumuşak başlangıç)
+  const ramps = [
+    [14, 20, 4.2, 3.2, 0.45],
+    [9, 21, 3.2, 2.8, 1.05],
+    [4, 21, 2.8, 2.6, 1.7],
   ];
-  isles.forEach(([x, z, w, h], i) => addPlatform(x, z, w, w, h, 0x7a6b8a));
+  ramps.forEach(([px, pz, w, d, top], i) => {
+    const p = addPlatform(px, pz, w, d, top, i % 2 ? 0x8d9299 : 0x9b6b3f);
+    decoratePlatform(p, i % 2 ? 'stone' : 'wood');
+    if (i === 1) addFlag(px, pz - d * 0.35, top, matFlagRed);
+  });
 
-  // Kuzey kulesi (yüksek gözetleme)
-  addPlatform(-16, -14, 3.4, 3.4, 1.0, 0x8a7b5a);
-  addPlatform(-16, -14, 2.6, 2.6, 2.2, 0x8a7b5a);
-  addPlatform(-16, -14, 1.8, 1.8, 3.4, 0x8a7b5a);
-  addPlatform(-16, -14, 1.2, 1.2, 4.6, 0xffd166);
+  // Yüzen adalar
+  const isles = [
+    [-2, 20, 2.1, 0.5],
+    [-6, 17, 1.9, 1.1],
+    [-9, 13, 1.9, 1.7],
+    [-12, 9, 2.1, 2.3],
+    [-13.5, 5, 2.0, 2.9],
+  ];
+  isles.forEach(([px, pz, sz, top], i) => {
+    const p = addPlatform(px, pz, sz, sz, top, 0x7a6b8a);
+    decoratePlatform(p, i % 2 ? 'grass' : 'wood');
+    if (i === 2) addLantern(px + 0.6, pz + 0.6, top);
+  });
 
-  // Doğu köprüsü
-  for (let i = 0; i < 5; i++) {
-    addPlatform(12 + i * 0.2, -6 - i * 2.6, 2.2, 2.2, 0.6 + i * 0.55, 0x9b6b3f);
+  // Kuzey gözetleme kulesi (4 kat)
+  const towerLevels = [[3.6, 1.0], [2.8, 2.1], [2.0, 3.2], [1.4, 4.3]];
+  towerLevels.forEach(([sz, top], i) => {
+    const p = addPlatform(-16, -14, sz, sz, top, 0x8a7b5a);
+    decoratePlatform(p, 'wood');
+    if (i === 3) {
+      addFlag(-16, -14, top, matFlagYellow);
+      addLantern(-15.2, -14.8, top);
+    }
+  });
+
+  // Doğu köprüsü: 6 adım + ip
+  const bridgeSteps = [];
+  for (let i = 0; i < 6; i++) {
+    const p = addPlatform(12 + i * 0.15, -6 - i * 2.4, 2.3, 2.3, 0.55 + i * 0.5, 0x9b6b3f);
+    decoratePlatform(p, i % 2 ? 'stone' : 'wood');
+    bridgeSteps.push(p);
   }
+  addRopeBridge(bridgeSteps[1], bridgeSteps[2]);
+  addFlag(12.9, -6 - 5 * 2.4, 0.55 + 5 * 0.5, matFlagRed);
+
+  // Tuzak bölgesi işareti (görsel)
+  const warn = new THREE.Mesh(
+    new THREE.RingGeometry(2.4, 2.7, 24),
+    new THREE.MeshBasicMaterial({ color: 0xff5252, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+  );
+  warn.rotation.x = -Math.PI / 2;
+  warn.position.set(0, 0.06, 8);
+  scene.add(warn);
 }
 
 /* --- Haritayı kur / temizle --- */
@@ -53955,6 +54128,7 @@ function clearWorld() {
     for (const obj of baselineSet) if (obj.parent) obj.parent.remove(obj);
     baselineSet = null;
   }
+  jumpRings.length = 0;
   obstacles.length = 0;
   coverables.length = 0;
   platforms.length = 0;
@@ -53984,124 +54158,291 @@ function buildMap(mapId) {
 buildMap('open');
 
 /* ==================== KARAKTER ==================== */
-function makeCharacter(bodyColor, isSeeker) {
-  const g = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.65 });
-  const skin = new THREE.MeshStandardMaterial({ color: 0xf2cba6, roughness: 0.8 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x26303f, roughness: 0.9 });
+/* ==================== İNSAN KARAKTERİ ==================== */
+/* Gerçekçi oranlı, detaylı insan modeli: saç, yüz, kıyafet, ayakkabı, eller */
+const HUMAN_LOOKS = [
+  { name: 'Deniz',   skin: 0xf2cba6, hair: 0x2b1d14, shirt: 0x3d7ec4, pants: 0x2a3446, shoe: 0x1a1f28, hairStyle: 'short' },
+  { name: 'Elif',    skin: 0xf7d9bd, hair: 0x8a5a2b, shirt: 0xd94f6a, pants: 0x3a3f52, shoe: 0x2a2020, hairStyle: 'long' },
+  { name: 'Mert',    skin: 0xdba77e, hair: 0x1a1410, shirt: 0x4a9e6a, pants: 0x33384a, shoe: 0x201a18, hairStyle: 'buzz' },
+  { name: 'Zeynep',  skin: 0xf0c9a8, hair: 0x141414, shirt: 0xe8a33d, pants: 0x2f3648, shoe: 0x1c1c22, hairStyle: 'ponytail' },
+  { name: 'Kerem',   skin: 0xc78e63, hair: 0x2a1a10, shirt: 0x8a5ad9, pants: 0x2c3242, shoe: 0x181820, hairStyle: 'short' },
+  { name: 'Selin',   skin: 0xfae0c8, hair: 0x6b3a1f, shirt: 0x3db5a0, pants: 0x38405a, shoe: 0x241e1e, hairStyle: 'long' },
+  { name: 'Can',     skin: 0xe0b48a, hair: 0x3d2a18, shirt: 0xd96b3d, pants: 0x2e3548, shoe: 0x1e1a18, hairStyle: 'buzz' },
+  { name: 'Ada',     skin: 0xf5d2b3, hair: 0xa85a2a, shirt: 0x5a7ad9, pants: 0x343b50, shoe: 0x2a2220, hairStyle: 'ponytail' },
+];
 
-  // --- gövde (pivot: kalça) ---
+function makeCharacter(bodyColor, isSeeker, lookIndex = null) {
+  const g = new THREE.Group();
+  const look = HUMAN_LOOKS[
+    lookIndex !== null ? lookIndex % HUMAN_LOOKS.length
+      : Math.floor(Math.random() * HUMAN_LOOKS.length)
+  ];
+  const shirtColor = bodyColor ?? look.shirt;
+  const matSkin = new THREE.MeshStandardMaterial({ color: look.skin, roughness: 0.78 });
+  const matHair = new THREE.MeshStandardMaterial({ color: look.hair, roughness: 0.9 });
+  const matShirt = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.72 });
+  const matPants = new THREE.MeshStandardMaterial({ color: look.pants, roughness: 0.85 });
+  const matShoe = new THREE.MeshStandardMaterial({ color: look.shoe, roughness: 0.6 });
+  const matEyeW = new THREE.MeshStandardMaterial({ color: 0xf7fbff, roughness: 0.25 });
+  const matPupil = new THREE.MeshStandardMaterial({ color: 0x171b22, roughness: 0.3 });
+  const matMouth = new THREE.MeshStandardMaterial({ color: 0xb5655f, roughness: 0.6 });
+
+  // ---- gövde grubu (kalça pivotu) ----
   const body = new THREE.Group();
-  body.position.y = 0.95;
+  body.position.y = 0.92;
   g.add(body);
 
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.5, 6, 12), bodyMat);
-  torso.position.y = 0.32; torso.castShadow = true; body.add(torso);
+  // göğüs kafesi (üst gövde)
+  const chest = new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.34, 8, 14), matShirt);
+  chest.position.y = 0.34;
+  chest.scale.set(1.15, 1, 0.78);
+  chest.castShadow = true;
+  body.add(chest);
 
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 12), skin);
-  head.position.y = 0.88; head.castShadow = true; body.add(head);
+  // kalça
+  const hips = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.1, 6, 12), matPants);
+  hips.position.y = 0.06;
+  hips.scale.set(1.1, 1, 0.8);
+  hips.castShadow = true;
+  body.add(hips);
 
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x11161d });
-  for (const sx of [-0.08, 0.08]) {
-    const e = new THREE.Mesh(new THREE.SphereGeometry(0.037, 8, 8), eyeMat);
-    e.position.set(sx, 0.91, 0.2); body.add(e);
+  // boyun
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.07, 0.09, 10), matSkin);
+  neck.position.y = 0.56; neck.castShadow = true; body.add(neck);
+
+  // ---- kafa ----
+  const headGroup = new THREE.Group();
+  headGroup.position.y = 0.78;
+  body.add(headGroup);
+
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.145, 20, 16), matSkin);
+  skull.scale.set(0.94, 1.06, 0.98);
+  skull.castShadow = true;
+  headGroup.add(skull);
+
+  // çene
+  const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.098, 14, 10), matSkin);
+  jaw.position.set(0, -0.072, 0.022);
+  jaw.scale.set(0.92, 0.8, 0.92);
+  headGroup.add(jaw);
+
+  // gözler (beyaz + bebek)
+  for (const sx of [-0.056, 0.056]) {
+    const w = new THREE.Mesh(new THREE.SphereGeometry(0.031, 12, 10), matEyeW);
+    w.position.set(sx, 0.016, 0.108);
+    w.scale.set(1, 0.86, 0.55);
+    headGroup.add(w);
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.017, 10, 8), matPupil);
+    p.position.set(sx, 0.016, 0.128);
+    p.scale.set(1, 1, 0.5);
+    headGroup.add(p);
   }
 
-  // --- kollar (omuz pivotu) ---
+  // kaşlar
+  for (const sx of [-0.056, 0.056]) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.012, 0.016), matHair);
+    b.position.set(sx, 0.062, 0.115);
+    b.rotation.z = sx < 0 ? 0.14 : -0.14;
+    headGroup.add(b);
+  }
+
+  // burun
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.058, 8), matSkin);
+  nose.position.set(0, -0.012, 0.128);
+  nose.rotation.x = Math.PI / 2.1;
+  headGroup.add(nose);
+
+  // ağız
+  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.0075, 6, 12, Math.PI), matMouth);
+  mouth.position.set(0, -0.062, 0.118);
+  mouth.rotation.set(Math.PI, 0, Math.PI);
+  headGroup.add(mouth);
+
+  // kulaklar
+  for (const sx of [-0.138, 0.138]) {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), matSkin);
+    ear.position.set(sx, 0, 0.005);
+    ear.scale.set(0.5, 1, 0.72);
+    headGroup.add(ear);
+  }
+
+  // ---- saç ----
+  const hairGroup = new THREE.Group();
+  headGroup.add(hairGroup);
+  const capHair = new THREE.Mesh(new THREE.SphereGeometry(0.152, 18, 14, 0, Math.PI * 2, 0, Math.PI * 0.62), matHair);
+  capHair.position.y = 0.012;
+  capHair.scale.set(1, 1.06, 1.02);
+  capHair.castShadow = true;
+  hairGroup.add(capHair);
+
+  if (look.hairStyle === 'long') {
+    const back = new THREE.Mesh(new THREE.CapsuleGeometry(0.115, 0.3, 6, 12), matHair);
+    back.position.set(0, -0.16, -0.055);
+    back.scale.set(1, 1, 0.62);
+    back.castShadow = true;
+    hairGroup.add(back);
+  } else if (look.hairStyle === 'ponytail') {
+    const tie = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), matHair);
+    tie.position.set(0, 0.0, -0.15);
+    hairGroup.add(tie);
+    const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.052, 0.24, 6, 10), matHair);
+    tail.position.set(0, -0.16, -0.18);
+    tail.rotation.x = -0.35;
+    tail.castShadow = true;
+    hairGroup.add(tail);
+  } else if (look.hairStyle === 'buzz') {
+    capHair.scale.set(0.98, 1.0, 1.0);
+  }
+
+  // ---- kollar (omuz pivotu) ----
   const arms = [];
-  for (const sx of [-0.34, 0.34]) {
+  for (const sx of [-1, 1]) {
     const pivot = new THREE.Group();
-    pivot.position.set(sx, 0.62, 0);
-    const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.42, 4, 8), bodyMat);
-    a.position.y = -0.24; a.castShadow = true;
-    pivot.add(a);
+    pivot.position.set(sx * 0.215, 0.5, 0);
     body.add(pivot);
+
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.058, 0.16, 6, 10), matShirt);
+    upper.position.y = -0.1;
+    upper.castShadow = true;
+    pivot.add(upper);
+
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.17, 6, 10), matSkin);
+    fore.position.y = -0.28;
+    fore.castShadow = true;
+    pivot.add(fore);
+
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), matSkin);
+    hand.position.y = -0.4;
+    hand.scale.set(0.8, 1.1, 0.6);
+    hand.castShadow = true;
+    pivot.add(hand);
+
     arms.push(pivot);
   }
 
-  // --- bacaklar (kalça pivotu) ---
+  // ---- bacaklar (kalça pivotu) ----
   const legs = [];
-  for (const sx of [-0.13, 0.13]) {
+  for (const sx of [-1, 1]) {
     const pivot = new THREE.Group();
-    pivot.position.set(sx, -0.05, 0);
-    const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.42, 4, 8), dark);
-    l.position.y = -0.3; l.castShadow = true;
-    pivot.add(l);
+    pivot.position.set(sx * 0.095, 0.0, 0);
     body.add(pivot);
+
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.072, 0.24, 6, 10), matPants);
+    thigh.position.y = -0.15;
+    thigh.castShadow = true;
+    pivot.add(thigh);
+
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.058, 0.26, 6, 10), matPants);
+    shin.position.y = -0.44;
+    shin.castShadow = true;
+    pivot.add(shin);
+
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.075, 0.2), matShoe);
+    shoe.position.set(0, -0.615, 0.032);
+    shoe.castShadow = true;
+    pivot.add(shoe);
+
     legs.push(pivot);
   }
 
+  // ---- ebe/kıyafet aksesuarları ----
   if (isSeeker) {
-    const cap = new THREE.Mesh(new THREE.ConeGeometry(0.31, 0.32, 14),
-      new THREE.MeshStandardMaterial({ color: 0xe5484d, roughness: 0.5 }));
-    cap.position.y = 1.18; cap.castShadow = true; body.add(cap);
+    // kırmızı bere + yelek
+    const beanie = new THREE.Mesh(new THREE.SphereGeometry(0.158, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),
+      new THREE.MeshStandardMaterial({ color: 0xd93b3b, roughness: 0.8 }));
+    beanie.position.y = 0.035;
+    beanie.scale.set(1.02, 1.02, 1.02);
+    hairGroup.add(beanie);
+    const brim = new THREE.Mesh(new THREE.TorusGeometry(0.152, 0.022, 8, 20),
+      new THREE.MeshStandardMaterial({ color: 0xb02b2b, roughness: 0.85 }));
+    brim.position.y = 0.012;
+    brim.rotation.x = Math.PI / 2;
+    headGroup.add(brim);
+
+    const vest = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.3, 8, 14), 
+      new THREE.MeshStandardMaterial({ color: 0x2f3446, roughness: 0.8 }));
+    vest.position.y = 0.34;
+    vest.scale.set(1.16, 1, 0.8);
+    body.add(vest);
   } else {
-    const mark = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.033, 8, 18),
-      new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffb703, emissiveIntensity: 1.4 }));
-    mark.position.y = 1.5; mark.rotation.x = Math.PI / 2;
+    // parlak sarı işaret (fener gibi)
+    const mark = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.028, 8, 16),
+      new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffb703, emissiveIntensity: 1.6 }));
+    mark.position.y = 1.62;
+    mark.rotation.x = Math.PI / 2;
     body.add(mark);
     g.userData.mark = mark;
   }
 
-  g.userData.legs = legs;
-  g.userData.arms = arms;
-  g.userData.body = body;
-  g.userData.head = head;
-  g.userData.phase = Math.random() * 6.28;
-  g.userData.jumpY = 0;
+  g.userData = Object.assign(g.userData, {
+    legs, arms, body, head: headGroup, chest, hips,
+    phase: Math.random() * 6.28,
+    look,
+    name: look.name,
+  });
   return g;
 }
 
-/* --- karakter animasyonu: yürüme / koşma / zıplama --- */
+/* --- karakter animasyonu: yürüme / koşma / zıplama / nefes --- */
 function animateCharacter(mesh, speed, dt, grounded = true, verticalVel = 0) {
-  const legs = mesh.userData.legs;
-  const arms = mesh.userData.arms;
-  const body = mesh.userData.body;
+  const u = mesh.userData;
+  const legs = u.legs, arms = u.arms, body = u.body;
   if (!legs || !arms || !body) return;
 
-  const u = mesh.userData;
   const moving = speed > 0.35;
+  const stride = Math.min(speed / 4.2, 2.2);
 
   if (!moving) {
-    // nefes alma
-    u.phase += dt * 1.6;
-    const breathe = Math.sin(u.phase) * 0.012;
-    body.position.y = 0.95 + breathe;
-    legs[0].rotation.x *= 0.85;
-    legs[1].rotation.x *= 0.85;
-    arms[0].rotation.x *= 0.85;
-    arms[1].rotation.x *= 0.85;
-    body.rotation.z *= 0.85;
+    // nefes alma + hafif salınım
+    u.phase += dt * 1.5;
+    const breathe = Math.sin(u.phase) * 0.014;
+    body.position.y = 0.92 + breathe;
+    body.rotation.x *= 0.88;
+    body.rotation.z *= 0.88;
+    u.head.rotation.y = Math.sin(u.phase * 0.5) * 0.12;
+    u.head.rotation.x *= 0.9;
+    for (const l of legs) l.rotation.x *= 0.82;
+    u.arms[0].rotation.x *= 0.82;
+    u.arms[1].rotation.x *= 0.82;
+    u.arms[0].rotation.z = 0.09;
+    u.arms[1].rotation.z = -0.09;
+    return;
+  }
+
+  // havada: bacaklar toplanır, kollar yukarı
+  if (!grounded) {
+    legs[0].rotation.x = -0.62;
+    legs[1].rotation.x = 0.34;
+    arms[0].rotation.x = -1.5;
+    arms[1].rotation.x = -1.35;
+    arms[0].rotation.z = 0.28;
+    arms[1].rotation.z = -0.28;
+    body.rotation.x = -0.08;
+    body.position.y = 0.92;
+    u.head.rotation.x = 0.12;
     return;
   }
 
   // adım frekansı hıza bağlı
-  const stride = Math.min(speed / 4, 2.4);
-  u.phase += dt * (5.5 + stride * 3.2);
-
+  u.phase += dt * (5.2 + stride * 3.6);
   const swing = Math.sin(u.phase);
-  const amp = Math.min(0.45 + stride * 0.28, 1.05);
-
-  // havada ise bacaklar toplanır
-  if (!grounded) {
-    legs[0].rotation.x = -0.7;
-    legs[1].rotation.x = 0.45;
-    arms[0].rotation.x = -1.3;
-    arms[1].rotation.x = -1.3;
-    body.rotation.z = 0;
-    body.position.y = 0.95;
-    return;
-  }
+  const amp = Math.min(0.42 + stride * 0.3, 1.0);
 
   legs[0].rotation.x = swing * amp;
   legs[1].rotation.x = -swing * amp;
-  arms[0].rotation.x = -swing * amp * 0.85;
-  arms[1].rotation.x = swing * amp * 0.85;
+  arms[0].rotation.x = -swing * amp * 0.88;
+  arms[1].rotation.x = swing * amp * 0.88;
+  arms[0].rotation.z = 0.09 + Math.abs(swing) * 0.04;
+  arms[1].rotation.z = -0.09 - Math.abs(swing) * 0.04;
 
-  // gövde sallanması + öne eğilme
-  body.rotation.z = Math.cos(u.phase) * 0.05 * stride;
-  body.rotation.x = stride > 1.4 ? 0.12 : 0.04 * stride;
-  body.position.y = 0.95 + Math.abs(Math.sin(u.phase)) * 0.045 * stride;
+  // gövde yalpalama + öne eğilme
+  body.rotation.z = Math.cos(u.phase) * 0.045 * stride;
+  body.rotation.x = 0.03 * stride + (stride > 1.3 ? 0.11 : 0);
+  body.position.y = 0.92 + Math.abs(Math.sin(u.phase)) * 0.042 * stride;
+
+  // kafa hafif sallanır
+  u.head.rotation.x = Math.sin(u.phase * 2) * 0.03;
+  u.head.rotation.y *= 0.9;
 }
 
 /* ==================== OYUNCU ==================== */
@@ -54726,6 +55067,7 @@ function spawnNPC(role, awayFrom, minD) {
   scene.add(mesh);
   const n = {
     mesh, pos: p.clone(), yaw: Math.random() * 6.28, role,
+    name: mesh.userData.name,
     state: role === 'seeker' ? 'patrol' : 'hide',
     target: randomFreePoint(p, 6),
     speed: 2.6, seeT: 0, loseT: 0, lastSeen: null,
@@ -54985,6 +55327,41 @@ function placeTrap() {
   traps.push({ type, pos: V(px, pz), mesh, life: type === 'decoy' ? decoyLife : 999, t: 0 });
   updateTrapHud();
   toast(type === 'net' ? 'Ağ kuruldu' : type === 'banana' ? 'Muz bırakıldı' : 'Yem bot bırakıldı', '', '#7df0b4', 700);
+}
+
+/* Zıplama halkaları: havadayken topla */
+function updateJumpRings(dt) {
+  for (const r of jumpRings) {
+    if (r.done) continue;
+    // animasyon: dönme + nabız
+    r.mesh.rotation.z += dt * 1.6;
+    const pulse = 1 + Math.sin(performance.now() * 0.004) * 0.06;
+    r.mesh.scale.setScalar(pulse);
+
+    const dx = player.pos.x - r.x;
+    const dz = player.pos.z - r.z;
+    const dy = (player.y || 0) + 1.0 - r.y;      // göğüs hizası
+    const horiz = Math.hypot(dx, dz);
+    if (horiz < r.radius + 0.45 && Math.abs(dy) < 0.85) {
+      r.done = true;
+      r.mesh.material.color.setHex(0x7df0b4);
+      r.mesh.material.emissive?.setHex(0x2ecc71);
+      addTrapPoints(25);
+      save.coins += 10;
+      persist();
+      toast('HALKA!', '+25 puan · +10 🪙', '#7df0b4', 900);
+      // küçülerek kaybol
+      r.fade = 1;
+    }
+  }
+  // kaybolma animasyonu
+  for (const r of jumpRings) {
+    if (r.fade > 0) {
+      r.fade -= dt * 1.4;
+      r.mesh.scale.setScalar(Math.max(0.01, r.fade));
+      if (r.fade <= 0) r.mesh.visible = false;
+    }
+  }
 }
 
 function updateTraps(dt) {
@@ -55368,9 +55745,11 @@ function updateSeekerNPC(n, dt) {
   if (n.state === 'climb') {
     n.climbT = (n.climbT || 0) + dt;
     const ny = n.y || 0;
+    const realGround = groundHeightAt(n.pos.x, n.pos.z, 0.35);
+    const baseY = Math.max(ny, realGround);
 
     // OYUNCU artık aşağıdaysa tırmanmayı bırak
-    if ((player.y || 0) <= ny + 0.5) {
+    if ((player.y || 0) <= baseY + 0.5) {
       n.state = 'chase';
       n.climbTarget = null;
       n.climbT = 0;
@@ -55379,14 +55758,21 @@ function updateSeekerNPC(n, dt) {
     }
 
     // hedef platform: bir üst basamak (0.25 - 1.0 m yukarı), oyuncuya doğru
-    const targetInvalid = !n.climbTarget ||
-      Math.abs(n.climbTarget.top - ny) < 0.15 ||
-      n.climbTarget.top < ny - 1.0;
+    // hedefe ulaşınca (üstündeyse) bir sonrakine geç
+    const onTargetNow = n.climbTarget &&
+      n.pos.x > n.climbTarget.minX - 0.3 && n.pos.x < n.climbTarget.maxX + 0.3 &&
+      n.pos.z > n.climbTarget.minZ - 0.3 && n.pos.z < n.climbTarget.maxZ + 0.3 &&
+      Math.abs(baseY - n.climbTarget.top) < 0.3;
+
+    const targetInvalid = onTargetNow || !n.climbTarget ||
+      Math.abs(n.climbTarget.top - baseY) < 0.15 ||
+      n.climbTarget.top < baseY - 1.0 ||
+      n.climbTarget.top > baseY + 1.05;
 
     if (targetInvalid) {
       let best = null, bestScore = 1e9;
       for (const p of platforms) {
-        const dh = p.top - ny;
+        const dh = p.top - baseY;
         if (dh < 0.25 || dh > 1.0) continue;
         const cx = (p.minX + p.maxX) / 2, cz = (p.minZ + p.maxZ) / 2;
         const d = Math.hypot(cx - n.pos.x, cz - n.pos.z);
@@ -55413,16 +55799,32 @@ function updateSeekerNPC(n, dt) {
       n.speed = 3.4;
 
       // kenara 1.8 m kaldıysa zıpla (zıplama menzili ~1.5 m yatay, 1.0 m dikey)
-      const needUp = t.top > ny + 0.25;
+      const needUp = t.top > baseY + 0.2;
       // zıplama: kenara yaklaştıysa VEYA merkeze 2.6 m'den yakınsa
       if (needUp && n.grounded && (distToEdge < 2.6 || distToCenter < 3.0)) {
         n.wantsJump = true;
         n.forceJump = true;
       }
     } else {
-      // yukarı çıkacak platform yok → oyuncuya doğru yürü
-      n.target = V(player.pos.x, player.pos.z);
-      n.speed = 3.2;
+      // yukarı çıkacak platform yok → aşağı in, rampadan tekrar dene
+      let below = null, bd = 1e9;
+      for (const p of platforms) {
+        const dh = p.top - ny;
+        if (dh > -0.2 || dh < -2.2) continue;   // aşağıda, erişilebilir
+        const cx = (p.minX + p.maxX) / 2, cz = (p.minZ + p.maxZ) / 2;
+        const d = Math.hypot(cx - n.pos.x, cz - n.pos.z);
+        if (d < bd) { bd = d; below = p; }
+      }
+      if (below && bd > 0.6) {
+        n.target = V((below.minX + below.maxX) / 2, (below.minZ + below.maxZ) / 2);
+        n.speed = 3.2;
+      } else {
+        // aşağı da yok → geniş bir platforma (rampa) git
+        n.climbCooldown = 2;
+        n.state = 'chase';
+        n.target = V(player.pos.x, player.pos.z);
+        n.speed = 3.2;
+      }
     }
 
     // 18 sn'den fazla sürdüyse bırak
@@ -55584,7 +55986,7 @@ function moveNPC(n, dt) {
   // havada itiş (zıplarken hedefe doğru kayma)
   if (n.airPush && n.airPush.t > 0) {
     n.airPush.t -= dt;
-    moveEntity(n, n.airPush.x * 4.2 * dt, n.airPush.z * 4.2 * dt, 0.4);
+    moveEntity(n, n.airPush.x * 5.2 * dt, n.airPush.z * 5.2 * dt, 0.4);
   }
 
   // dikey fizik (botlar da platformlara çıkabilir ve zıplayabilir)
@@ -55597,7 +55999,9 @@ function moveNPC(n, dt) {
   } else if (n.y <= g + 0.05) {
     n.coyote = 0.28;
   }
-  if (n.y < g && g - n.y <= PLATFORM_STEP + 0.35) { n.y = g; n.vy = 0; n.grounded = true; }
+  if (n.y <= g + 0.12 && (n.vy || 0) <= 0.1) {
+    n.y = g; n.vy = 0; n.grounded = true;
+  }
 
   // bot zıplama: hedefe doğru, hedef daha yüksekse veya önde yükselti varsa
   if (n.wantsJump && n.grounded && (n.jumpCd || 0) <= 0) {
@@ -55624,7 +56028,8 @@ function moveNPC(n, dt) {
 
   n.vy -= GRAVITY * dt;
   n.y += n.vy * dt;
-  if (n.y <= g) { n.y = g; n.vy = 0; n.grounded = true; } else n.grounded = false;
+  const gAfter = Math.max(g, groundHeightAt(n.pos.x, n.pos.z, 0.45));
+  if (n.y <= gAfter) { n.y = gAfter; n.vy = 0; n.grounded = true; } else n.grounded = false;
 
   n.mesh.position.set(n.pos.x, n.y, n.pos.z);
   n.mesh.rotation.y = n.yaw;
@@ -56003,6 +56408,7 @@ function loop() {
     }
     updateTraps(dt);
     updateSmoke(dt);
+    updateJumpRings(dt);
     noiseEvent = null;
     if (catchCooldown > 0) catchCooldown -= dt;
     updateHUD(dt);
@@ -56101,6 +56507,7 @@ window.__api = { updatePlayer, updateSeekerNPC, updateHiderNPC, updateTraps, upd
 window.__game = {
   state, player, npcs, traps, coverables, obstacles, SHOP,
   get platforms() { return platforms; },
+  get jumpRings() { return jumpRings; },
   get currentMap() { return currentMap; },
   buildMap, selectMap, MAPS,
   startRound, placeTrap, useAbility, buyItem, endRound, buyTrap, openTrapShop, cycleTrap,
