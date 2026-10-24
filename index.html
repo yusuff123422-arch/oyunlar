@@ -112,16 +112,25 @@
   .badge.on { background:rgba(125,240,180,.18); color:#7df0b4; }
   .coins { font-size:15px; font-weight:800; color:#ffd166; }
 
+  #weaponHud { position:absolute; right:18px; bottom:96px; display:flex; align-items:center; gap:8px;
+    background:rgba(13,17,23,.8); border:2px solid rgba(125,211,252,.5); border-radius:12px;
+    padding:8px 12px; backdrop-filter:blur(8px); }
+  #weaponHud.empty { border-color:rgba(255,100,100,.5); opacity:.6; }
+  #weaponHud .wIcon { font-size:22px; }
+  #weaponHud .wInfo { display:flex; flex-direction:column; line-height:1.1; }
+  #weaponHud b { font-size:15px; color:#7dd3fc; font-variant-numeric:tabular-nums; }
+  #weaponHud small { font-size:10px; color:#8fa3bd; font-weight:800; letter-spacing:.5px; }
+
   /* harita seçimi */
-  .mapRow { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+  .mapRow { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
   .mapCard { cursor:pointer; font-family:inherit; text-align:left; color:#cfe0f5;
     background:rgba(255,255,255,.04); border:2px solid rgba(120,170,255,.18);
     border-radius:16px; padding:14px 16px; transition:all .15s; }
   .mapCard:hover { background:rgba(120,170,255,.1); transform:translateY(-2px); }
   .mapCard.sel { border-color:#7df0b4; background:rgba(125,240,180,.1); }
   .mapIcon { font-size:26px; margin-bottom:4px; }
-  .mapName { font-weight:800; font-size:15px; color:#e8eef7; margin-bottom:3px; }
-  .mapDesc { font-size:12px; color:#8fa3bd; line-height:1.45; }
+  .mapName { font-weight:800; font-size:14px; color:#e8eef7; margin-bottom:3px; }
+  .mapDesc { font-size:11.5px; color:#8fa3bd; line-height:1.4; }
   .mapCard.sel .mapName { color:#7df0b4; }
 
   /* zorluk seçimi */
@@ -135,6 +144,25 @@
   .diffName { font-weight:800; font-size:14px; color:#e8eef7; }
   .diffDesc { font-size:11px; color:#8fa3bd; margin-top:2px; }
   .diffCard.sel .diffName { color:#ffd166; }
+
+  /* online lobi */
+  .joinRow { display:flex; gap:10px; justify-content:center; }
+  .joinRow input { flex:1; max-width:220px; background:rgba(255,255,255,.06); border:2px solid rgba(120,170,255,.3);
+    border-radius:11px; color:#e8eef7; font-family:inherit; font-size:16px; font-weight:800;
+    letter-spacing:3px; text-align:center; padding:10px 12px; text-transform:uppercase; }
+  .joinRow input::placeholder { letter-spacing:1px; font-size:13px; color:#6b7c92; }
+  .roomCode { text-align:center; font-size:14px; color:#8fa3bd; letter-spacing:1px; }
+  .roomCode b { font-size:26px; color:#7df0b4; letter-spacing:6px; display:block; margin-top:4px; }
+  .lobbyList { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+  .lobbyPlayer { display:flex; align-items:center; gap:8px; padding:9px 12px;
+    background:rgba(255,255,255,.04); border:1px solid rgba(120,170,255,.14); border-radius:10px; font-size:14px; }
+  .lobbyPlayer.me { border-color:rgba(125,240,180,.45); background:rgba(125,240,180,.08); }
+  .lobbyPlayer .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .lobbyPlayer .dot.green { background:#7df0b4; }
+  .lobbyPlayer .dot.red { background:#e5484d; }
+  .lobbyErr { text-align:center; padding:20px; background:rgba(255,100,100,.08);
+    border:1px solid rgba(255,100,100,.3); border-radius:12px; font-size:13.5px; line-height:1.7; }
+  .lobbyErr code { background:rgba(0,0,0,.35); padding:2px 6px; border-radius:4px; font-size:12px; }
 
   /* multiplayer kartları */
   .mpRow { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:12px 0; }
@@ -210,6 +238,10 @@
     <div id="prompt"></div>
     <div id="staminaWrap"><div id="stamina"></div></div>
   </div>
+  <div id="weaponHud" class="hidden">
+    <div class="wIcon">❄️</div>
+    <div class="wInfo"><b id="weaponAmmo">0</b><small id="weaponLabel">BOŞ</small></div>
+  </div>
   <div id="toast"></div>
 
   <!-- TUZAK DÜKKANI (tur içi) -->
@@ -244,10 +276,15 @@
         <div class="mapName">Açık Dünya</div>
         <div class="mapDesc">Geniş çayır, 46 ağaç, çalılar ve kulübe. Klasik saklambaç.</div>
       </button>
+      <button class="mapCard" data-map="maze">
+        <div class="mapIcon">🌀</div>
+        <div class="mapName">Labirent</div>
+        <div class="mapDesc">Dar koridorlar, kör noktalar. Yön duygunu test et.</div>
+      </button>
       <button class="mapCard" data-map="parkour">
         <div class="mapIcon">🧗</div>
-        <div class="mapName">Parkur Diyarı</div>
-        <div class="mapDesc">28 platform, ip köprüsü, kule, bayraklar ve zıplama halkaları. Botlar da tırmanır.</div>
+        <div class="mapName">Sonsuz Parkur</div>
+        <div class="mapDesc">Her tur yeniden üretilen platformlar. Tırman, halkaları topla.</div>
       </button>
     </div>
     <h2 style="margin:14px 0 8px">⚡ Zorluk</h2>
@@ -273,6 +310,7 @@
       <button class="btn" id="shopBtn">🛒 Mağaza</button>
       <button class="btn" id="loadoutBtn">🎒 Ekipman</button>
       <button class="btn" id="mpBtn" style="background:linear-gradient(135deg,#8a5ad9,#5a7ad9);border-color:transparent;color:#fff;font-weight:800">👥 2 Oyuncu</button>
+      <button class="btn" id="onlineBtn" style="background:linear-gradient(135deg,#25b6a0,#1a8a7a);border-color:transparent;color:#fff;font-weight:800">🌐 Online</button>
     </div>
     <div class="row">
       <button class="btn hidden" id="installBtn" style="background:linear-gradient(135deg,#4d7ea8,#3d6b8f);border-color:transparent;color:#fff;font-weight:800">⬇️ Uygulama Olarak Yükle</button>
@@ -333,6 +371,17 @@
     <div class="row" style="margin-top:18px">
       <button class="btn primary" id="loadoutBack">Geri</button>
     </div>
+  </div>
+</div>
+
+<!-- ONLINE LOBİ -->
+<div class="overlay hidden" id="lobby">
+  <div class="panel" style="width:min(560px,94vw)">
+    <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:4px">
+      <h1 style="font-size:24px;margin:0">🌐 Online Sunucu</h1>
+      <button class="btn small" id="lobbyBack">Geri</button>
+    </div>
+    <div id="lobbyContent" style="margin-top:14px"></div>
   </div>
 </div>
 
@@ -53539,6 +53588,7 @@ const DEFAULT_SAVE = {
   owned: {},        // id -> seviye
   loadout: {},      // slot -> id|null
   settings: { sensIdx: 1, invertY: false, bigMap: false, map: 'open', difficulty: 'normal' },
+  ammo: [],
 };
 
 let save = loadSave();
@@ -53553,6 +53603,7 @@ function loadSave() {
       ...parsed,
       settings: { ...DEFAULT_SAVE.settings, ...(parsed.settings || {}) },
       owned: { ...(parsed.owned || {}) },
+      ammo: Array.isArray(parsed.ammo) ? parsed.ammo : [],
       loadout: { ...(parsed.loadout || {}) },
     };
   } catch {
@@ -53721,49 +53772,114 @@ function currentDifficulty() {
 
 const MAPS = {
   open: {
-    id: 'open',
-    name: 'Açık Dünya',
-    icon: '🌳',
+    id: 'open', name: 'Açık Hava', icon: '🌳', color: '#7df0b4',
     desc: 'Geniş çayır, ağaçlar, çalılar ve kulübe. Klasik saklambaç.',
-    color: '#7df0b4',
+  },
+  maze: {
+    id: 'maze', name: 'Labirent', icon: '🌀', color: '#8a5ad9',
+    desc: 'Dar koridorlar, kör noktalar ve tuzaklar. Yön duygunu test et.',
   },
   parkour: {
-    id: 'parkour',
-    name: 'Parkur Diyarı',
-    icon: '🧗',
-    desc: 'Yükselen platformlar, atlama rampaları ve tuzaklar. Botlar da tırmanır.',
-    color: '#ffd166',
+    id: 'parkour', name: 'Sonsuz Parkur', icon: '🧗', color: '#ffd166',
+    desc: 'Her tur yeniden üretilen platformlar. Yukarı tırman, halkaları topla.',
   },
 };
 
 let currentMap = 'open';
 let worldGroup = null;
 
-/* Platformlar: yüksekliği olan, üstüne çıkılabilen kutular (harita başına sıfırlanır) */
-let platforms = [];
 
-function addPlatform(cx, cz, w, d, top, color) {
-  const h = top;
-  const mat = new THREE.MeshStandardMaterial({ color: color ?? 0x8a6b4a, roughness: 0.8 });
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  m.position.set(cx, h / 2, cz);
-  m.castShadow = true; m.receiveShadow = true;
-  scene.add(m);
-  const b = { minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2, top: h };
-  platforms.push(b);
-  return b;
+
+/* ==================== DOĞA OBJELERİ ==================== */
+const matTrunk = new THREE.MeshStandardMaterial({ color: 0x6b4a2f, roughness: 0.95 });
+const matLeafA = new THREE.MeshStandardMaterial({ color: 0x3f7a3a, roughness: 0.9 });
+const matLeafB = new THREE.MeshStandardMaterial({ color: 0x4f9147, roughness: 0.9 });
+const matLeafC = new THREE.MeshStandardMaterial({ color: 0x5aa850, roughness: 0.9 });
+const matBush = new THREE.MeshStandardMaterial({ color: 0x3d7d3a, roughness: 0.95 });
+const matRock = new THREE.MeshStandardMaterial({ color: 0x8b8f96, roughness: 0.95 });
+const matWood = new THREE.MeshStandardMaterial({ color: 0x9b6b3f, roughness: 0.85 });
+const matHay = new THREE.MeshStandardMaterial({ color: 0xd8b95a, roughness: 0.95 });
+
+
+function addTree(x, z, scale = 1) {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28 * scale, 0.42 * scale, 3.4 * scale, 8), matTrunk);
+  trunk.position.y = 1.7 * scale; trunk.castShadow = true; trunk.receiveShadow = true;
+  g.add(trunk);
+  const mats = [matLeafA, matLeafB, matLeafC];
+  for (let i = 0; i < 3; i++) {
+    const blob = new THREE.Mesh(new THREE.SphereGeometry((1.9 - i * 0.42) * scale, 10, 8), mats[i % 3]);
+    blob.position.set((Math.random() - 0.5) * 0.5, (3.4 + i * 1.05) * scale, (Math.random() - 0.5) * 0.5);
+    blob.castShadow = true; g.add(blob);
+  }
+  g.position.set(x, 0, z);
+  scene.add(g);
+  addObstacle(x, z, 0.9 * scale, 0.9 * scale, 3);
+  coverables.push({ x, z, r: 0.55 * scale, type: 'ağaç' });
 }
 
+function addBush(x, z, s = 1) {
+  const g = new THREE.Group();
+  for (let i = 0; i < 4; i++) {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.75 * s, 9, 7), matBush);
+    b.position.set((Math.random() - 0.5) * 1.3 * s, 0.6 * s + Math.random() * 0.3, (Math.random() - 0.5) * 1.3 * s);
+    b.castShadow = true; b.receiveShadow = true; g.add(b);
+  }
+  g.position.set(x, 0, z);
+  scene.add(g);
+  coverables.push({ x, z, r: 0.9 * s, type: 'çalı' });
+}
+
+function addRock(x, z, s = 1) {
+  const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9 * s, 0), matRock);
+  m.position.set(x, 0.55 * s, z);
+  m.rotation.set(Math.random(), Math.random(), Math.random());
+  m.scale.set(1, 0.75, 1);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  addObstacle(x, z, 1.5 * s, 1.5 * s, 1.2);
+  coverables.push({ x, z, r: 1.0 * s, type: 'kaya' });
+}
+
+function addCrate(x, z, s = 1) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1.4 * s, 1.4 * s, 1.4 * s), matWood);
+  m.position.set(x, 0.7 * s, z);
+  m.rotation.y = Math.random();
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  addObstacle(x, z, 1.4 * s, 1.4 * s, 1.4);
+  coverables.push({ x, z, r: 0.9 * s, type: 'sandık' });
+}
+
+function addHay(x, z) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 1.5, 12), matHay);
+  m.position.set(x, 0.75, z);
+  m.rotation.z = Math.PI / 2;
+  m.rotation.y = Math.random() * Math.PI;
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  addObstacle(x, z, 1.6, 1.6, 1.5);
+  coverables.push({ x, z, r: 1.0, type: 'saman' });
+}
+
+/* ==================== DÜNYA KURULUMU ==================== */
 function buildWorld(mapId = "open") {
+  const isMaze = mapId === 'maze';
   const isParkour = mapId === 'parkour';
+
   // Gökyüzü
   {
     const c = document.createElement('canvas');
     c.width = 8; c.height = 256;
     const ctx = c.getContext('2d');
     const g = ctx.createLinearGradient(0, 0, 0, 256);
-    g.addColorStop(0, '#3f7fc4'); g.addColorStop(0.45, '#7db8e8');
-    g.addColorStop(0.72, '#b9dcf2'); g.addColorStop(1, '#dfeefb');
+    if (isMaze) {
+      g.addColorStop(0, '#2a1f3d'); g.addColorStop(0.45, '#4a3a68');
+      g.addColorStop(0.72, '#6b5a88'); g.addColorStop(1, '#8a7aa8');
+    } else {
+      g.addColorStop(0, '#3f7fc4'); g.addColorStop(0.45, '#7db8e8');
+      g.addColorStop(0.72, '#b9dcf2'); g.addColorStop(1, '#dfeefb');
+    }
     ctx.fillStyle = g; ctx.fillRect(0, 0, 8, 256);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -53773,8 +53889,8 @@ function buildWorld(mapId = "open") {
     ));
   }
 
-  scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x5c6b4a, 1.0));
-  const sun = new THREE.DirectionalLight(0xfff2d8, 1.9);
+  scene.add(new THREE.HemisphereLight(isMaze ? 0x9c8fc4 : 0xcfe8ff, isMaze ? 0x2a2438 : 0x5c6b4a, isMaze ? 0.75 : 1.0));
+  const sun = new THREE.DirectionalLight(isMaze ? 0xd8c8ff : 0xfff2d8, isMaze ? 1.1 : 1.9);
   sun.position.set(35, 55, 22);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -53788,7 +53904,7 @@ function buildWorld(mapId = "open") {
   {
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(WORLD * 2.4, WORLD * 2.4),
-      new THREE.MeshStandardMaterial({ color: 0x6f9e57, roughness: 1 })
+      new THREE.MeshStandardMaterial({ color: isMaze ? 0x3a3448 : 0x6f9e57, roughness: 1 })
     );
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -53796,13 +53912,22 @@ function buildWorld(mapId = "open") {
     const c = document.createElement('canvas');
     c.width = c.height = 256;
     const ctx = c.getContext('2d');
-    ctx.fillStyle = '#6f9e57'; ctx.fillRect(0, 0, 256, 256);
-    for (let i = 0; i < 2600; i++) {
-      const x = Math.random() * 256, y = Math.random() * 256;
-      ctx.fillStyle = Math.random() > 0.5
-        ? `rgba(${120 + Math.random() * 40},${160 + Math.random() * 40},${90 + Math.random() * 30},.5)`
-        : `rgba(${70 + Math.random() * 30},${110 + Math.random() * 30},${60 + Math.random() * 25},.45)`;
-      ctx.fillRect(x, y, 3, 3);
+    if (isMaze) {
+      ctx.fillStyle = '#3a3448'; ctx.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 1400; i++) {
+        const x = Math.random() * 256, y = Math.random() * 256;
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(90,80,120,.35)' : 'rgba(48,42,66,.4)';
+        ctx.fillRect(x, y, 4, 4);
+      }
+    } else {
+      ctx.fillStyle = '#6f9e57'; ctx.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 2600; i++) {
+        const x = Math.random() * 256, y = Math.random() * 256;
+        ctx.fillStyle = Math.random() > 0.5
+          ? `rgba(${120 + Math.random() * 40},${160 + Math.random() * 40},${90 + Math.random() * 30},.5)`
+          : `rgba(${70 + Math.random() * 30},${110 + Math.random() * 30},${60 + Math.random() * 25},.45)`;
+        ctx.fillRect(x, y, 3, 3);
+      }
     }
     const tex = new THREE.CanvasTexture(c);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -53813,79 +53938,8 @@ function buildWorld(mapId = "open") {
     scene.add(ground);
   }
 
-  /* ---- materyaller ---- */
-  const matTrunk = new THREE.MeshStandardMaterial({ color: 0x6b4a2f, roughness: 0.95 });
-  const matLeafA = new THREE.MeshStandardMaterial({ color: 0x3f7a3a, roughness: 0.9 });
-  const matLeafB = new THREE.MeshStandardMaterial({ color: 0x4f9147, roughness: 0.9 });
-  const matLeafC = new THREE.MeshStandardMaterial({ color: 0x5aa850, roughness: 0.9 });
-  const matBush = new THREE.MeshStandardMaterial({ color: 0x3d7d3a, roughness: 0.95 });
-  const matRock = new THREE.MeshStandardMaterial({ color: 0x8b8f96, roughness: 0.95 });
-  const matWood = new THREE.MeshStandardMaterial({ color: 0x9b6b3f, roughness: 0.85 });
-  const matHay = new THREE.MeshStandardMaterial({ color: 0xd8b95a, roughness: 0.95 });
-
-  function addTree(x, z, scale = 1) {
-    const g = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28 * scale, 0.42 * scale, 3.4 * scale, 8), matTrunk);
-    trunk.position.y = 1.7 * scale; trunk.castShadow = true; trunk.receiveShadow = true;
-    g.add(trunk);
-    const mats = [matLeafA, matLeafB, matLeafC];
-    for (let i = 0; i < 3; i++) {
-      const blob = new THREE.Mesh(new THREE.SphereGeometry((1.9 - i * 0.42) * scale, 10, 8), mats[i % 3]);
-      blob.position.set((Math.random() - 0.5) * 0.5, (3.4 + i * 1.05) * scale, (Math.random() - 0.5) * 0.5);
-      blob.castShadow = true; g.add(blob);
-    }
-    g.position.set(x, 0, z);
-    scene.add(g);
-    addObstacle(x, z, 0.9 * scale, 0.9 * scale, 3);
-    coverables.push({ x, z, r: 0.55 * scale, type: 'ağaç' });
-  }
-
-  function addBush(x, z, s = 1) {
-    const g = new THREE.Group();
-    for (let i = 0; i < 4; i++) {
-      const b = new THREE.Mesh(new THREE.SphereGeometry(0.75 * s, 9, 7), matBush);
-      b.position.set((Math.random() - 0.5) * 1.3 * s, 0.6 * s + Math.random() * 0.3, (Math.random() - 0.5) * 1.3 * s);
-      b.castShadow = true; b.receiveShadow = true; g.add(b);
-    }
-    g.position.set(x, 0, z);
-    scene.add(g);
-    coverables.push({ x, z, r: 0.9 * s, type: 'çalı' });
-  }
-
-  function addRock(x, z, s = 1) {
-    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9 * s, 0), matRock);
-    m.position.set(x, 0.55 * s, z);
-    m.rotation.set(Math.random(), Math.random(), Math.random());
-    m.scale.set(1, 0.75, 1);
-    m.castShadow = true; m.receiveShadow = true;
-    scene.add(m);
-    addObstacle(x, z, 1.5 * s, 1.5 * s, 1.2);
-    coverables.push({ x, z, r: 1.0 * s, type: 'kaya' });
-  }
-
-  function addCrate(x, z, s = 1) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(1.4 * s, 1.4 * s, 1.4 * s), matWood);
-    m.position.set(x, 0.7 * s, z);
-    m.rotation.y = Math.random();
-    m.castShadow = true; m.receiveShadow = true;
-    scene.add(m);
-    addObstacle(x, z, 1.4 * s, 1.4 * s, 1.4);
-    coverables.push({ x, z, r: 0.9 * s, type: 'sandık' });
-  }
-
-  function addHay(x, z) {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 1.5, 12), matHay);
-    m.position.set(x, 0.75, z);
-    m.rotation.z = Math.PI / 2;
-    m.rotation.y = Math.random() * Math.PI;
-    m.castShadow = true; m.receiveShadow = true;
-    scene.add(m);
-    addObstacle(x, z, 1.6, 1.6, 1.5);
-    coverables.push({ x, z, r: 1.0, type: 'saman' });
-  }
-
-  // Çit
-  {
+  // Çit (sadece açık havada)
+  if (!isMaze) {
     const fm = new THREE.MeshStandardMaterial({ color: 0x8a6b4a, roughness: 0.9 });
     for (let i = -WALK; i <= WALK; i += 3.2) {
       for (const [x, z] of [[i, -WALK], [i, WALK], [-WALK, i], [WALK, i]]) {
@@ -53905,75 +53959,75 @@ function buildWorld(mapId = "open") {
     }
   }
 
-  // Ağaçlar
-  const treePositions = [];
-  const treeCount = isParkour ? 22 : 46;
-  for (let i = 0; i < treeCount; i++) {
-    let x, z, ok = false, tries = 0;
-    while (!ok && tries++ < 60) {
-      x = (Math.random() * 2 - 1) * (WALK - 3);
-      z = (Math.random() * 2 - 1) * (WALK - 3);
-      if (Math.hypot(x, z) < 7) continue;
-      if (treePositions.some((p) => Math.hypot(p[0] - x, p[1] - z) < 4.2)) continue;
-      ok = true;
+  // Ağaçlar (açık hava)
+  if (!isMaze) {
+    const treePositions = [];
+    const treeCount = isParkour ? 14 : 46;
+    for (let i = 0; i < treeCount; i++) {
+      let x, z, ok = false, tries = 0;
+      while (!ok && tries++ < 60) {
+        x = (Math.random() * 2 - 1) * (WALK - 3);
+        z = (Math.random() * 2 - 1) * (WALK - 3);
+        if (Math.hypot(x, z) < 7) continue;
+        if (isParkour && (Math.hypot(x, z) < 18)) continue;
+        if (treePositions.some((p) => Math.hypot(p[0] - x, p[1] - z) < 4.2)) continue;
+        ok = true;
+      }
+      if (!ok) continue;
+      treePositions.push([x, z]);
+      addTree(x, z, 0.85 + Math.random() * 0.6);
     }
-    if (!ok) continue;
-    treePositions.push([x, z]);
-    addTree(x, z, 0.85 + Math.random() * 0.6);
-  }
 
-  for (let i = 0; i < 34; i++) {
-    const x = (Math.random() * 2 - 1) * (WALK - 3);
-    const z = (Math.random() * 2 - 1) * (WALK - 3);
-    if (Math.hypot(x, z) < 6) continue;
-    addBush(x, z, 0.8 + Math.random() * 0.6);
-  }
-  for (let i = 0; i < 16; i++) {
-    const x = (Math.random() * 2 - 1) * (WALK - 4);
-    const z = (Math.random() * 2 - 1) * (WALK - 4);
-    if (Math.hypot(x, z) < 8) continue;
-    addRock(x, z, 0.8 + Math.random() * 0.7);
-  }
-  for (let i = 0; i < 10; i++) {
-    const x = (Math.random() * 2 - 1) * (WALK - 5);
-    const z = (Math.random() * 2 - 1) * (WALK - 5);
-    if (Math.hypot(x, z) < 7) continue;
-    if (i % 2) addCrate(x, z, 0.9 + Math.random() * 0.4);
-    else addHay(x, z);
-  }
+    for (let i = 0; i < 34; i++) {
+      const x = (Math.random() * 2 - 1) * (WALK - 3);
+      const z = (Math.random() * 2 - 1) * (WALK - 3);
+      if (Math.hypot(x, z) < 6) continue;
+      addBush(x, z, 0.8 + Math.random() * 0.6);
+    }
+    for (let i = 0; i < 16; i++) {
+      const x = (Math.random() * 2 - 1) * (WALK - 4);
+      const z = (Math.random() * 2 - 1) * (WALK - 4);
+      if (Math.hypot(x, z) < 8) continue;
+      addRock(x, z, 0.8 + Math.random() * 0.7);
+    }
+    for (let i = 0; i < 10; i++) {
+      const x = (Math.random() * 2 - 1) * (WALK - 5);
+      const z = (Math.random() * 2 - 1) * (WALK - 5);
+      if (Math.hypot(x, z) < 7) continue;
+      if (i % 2) addCrate(x, z, 0.9 + Math.random() * 0.4);
+      else addHay(x, z);
+    }
 
-  // Kulübe
-  {
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xc9b79a, roughness: 0.95 });
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0x8a3b3b, roughness: 0.85 });
-    const hut = new THREE.Group();
-    const W = 7, D = 6, H = 2.6, T = 0.35;
-    const mk = (w, h, d, x, y, z) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
-      m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; hut.add(m);
-    };
-    mk(W, H, T, 0, H / 2, -D / 2);
-    mk(T, H, D, -W / 2, H / 2, 0);
-    mk(T, H, D, W / 2, H / 2, 0);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(W + 0.8, 0.3, D + 0.8), roofMat);
-    roof.position.set(0, H + 0.15, 0); roof.castShadow = true; hut.add(roof);
-    hut.position.set(-22, 0, 20);
-    scene.add(hut);
-    addObstacle(-22, 20 - D / 2, W, T, H);
-    addObstacle(-22 - W / 2, 20, T, D, H);
-    addObstacle(-22 + W / 2, 20, T, D, H);
-    coverables.push({ x: -22, z: 20 - D / 2 + 0.9, r: 1.0, type: 'kulübe' });
-  }
+    // Kulübe
+    {
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0xc9b79a, roughness: 0.95 });
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0x8a3b3b, roughness: 0.85 });
+      const hut = new THREE.Group();
+      const W = 7, D = 6, H = 2.6, T = 0.35;
+      const mk = (w, h, d, x, y, z) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+        m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; hut.add(m);
+      };
+      mk(W, H, T, 0, H / 2, -D / 2);
+      mk(T, H, D, -W / 2, H / 2, 0);
+      mk(T, H, D, W / 2, H / 2, 0);
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(W + 0.8, 0.3, D + 0.8), roofMat);
+      roof.position.set(0, H + 0.15, 0); roof.castShadow = true; hut.add(roof);
+      hut.position.set(-22, 0, 20);
+      scene.add(hut);
+      obstacles.push({ minX: -22 - W / 2, maxX: -22 + W / 2, minZ: 20 - D / 2 - T / 2, maxZ: 20 - D / 2 + T / 2, h: H });
+    }
 
-  // Gölet
-  {
-    const pond = new THREE.Mesh(
-      new THREE.CircleGeometry(6, 40),
-      new THREE.MeshStandardMaterial({ color: 0x3a7fb5, roughness: 0.15, metalness: 0.35, transparent: true, opacity: 0.9 })
-    );
-    pond.rotation.x = -Math.PI / 2;
-    pond.position.set(24, 0.03, -22);
-    scene.add(pond);
+    // Gölet
+    {
+      const pond = new THREE.Mesh(
+        new THREE.CircleGeometry(6, 40),
+        new THREE.MeshStandardMaterial({ color: 0x3a7fb5, roughness: 0.15, metalness: 0.35, transparent: true, opacity: 0.9 })
+      );
+      pond.rotation.x = -Math.PI / 2;
+      pond.position.set(24, 0.03, -22);
+      scene.add(pond);
+    }
   }
 }
 
@@ -53984,6 +54038,21 @@ const PLATFORM_STEP = 0.75;   // bu kadar yükseklik farkı otomatik tırmanıl�
 const GRAVITY = 21;
 const JUMP_V = 10.4;
 
+
+/* Platformlar: yüksekliği olan, üstüne çıkılabilen kutular (harita başına sıfırlanır) */
+let platforms = [];
+
+function addPlatform(cx, cz, w, d, top, color) {
+  const mat = new THREE.MeshStandardMaterial({ color: color ?? 0x8a6b4a, roughness: 0.8 });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, top, d), mat);
+  m.position.set(cx, top / 2, cz);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  const b = { minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2, top };
+  platforms.push(b);
+  return b;
+}
+
 /* Zemin yüksekliği: bir noktadaki en yüksek platform */
 function groundHeightAt(x, z, r = 0.35) {
   let h = 0;
@@ -53993,6 +54062,120 @@ function groundHeightAt(x, z, r = 0.35) {
     }
   }
   return h;
+}
+
+
+/* ==================== LABİRENT HARİTASI ==================== */
+/* Izgara tabanlı labirent: her hücre 4 m, duvarlar koridor oluşturur */
+let MAZE_SIZE = 9;         // 9x9 hücre
+let MAZE_CELL = 4.2;
+const mazeWalls = [];
+
+function buildMaze(mapId) {
+  const N = MAZE_SIZE;
+  const cell = MAZE_CELL;
+  const origin = -(N * cell) / 2;
+
+  // Her hücre için duvarlar (kuzey/doğu) — kenar duvarları hep var
+  const hWall = [];
+  const vWall = [];
+  for (let i = 0; i < N; i++) {
+    hWall.push(new Array(N).fill(true));
+    vWall.push(new Array(N).fill(true));
+  }
+
+  // Recursive backtracker ile mükemmel labirent
+  const visited = [];
+  for (let i = 0; i < N; i++) visited.push(new Array(N).fill(false));
+  const stack = [[0, 0]];
+  visited[0][0] = true;
+  const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+  while (stack.length) {
+    const [cx, cy] = stack[stack.length - 1];
+    const options = [];
+    for (const [dx, dy] of dirs) {
+      const nx = cx + dx, ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+      if (visited[ny][nx]) continue;
+      options.push([nx, ny, dx, dy]);
+    }
+    if (!options.length) { stack.pop(); continue; }
+    const [nx, ny, dx, dy] = options[Math.floor(Math.random() * options.length)];
+    // duvarı kaldır
+    if (dx === 1) vWall[cy][cx] = false;
+    if (dx === -1) vWall[cy][cx - 1] = false;
+    if (dy === 1) hWall[cy][cx] = false;
+    if (dy === -1) hWall[cy - 1][cx] = false;
+    visited[ny][nx] = true;
+    stack.push([nx, ny]);
+  }
+
+  // Ekstra geçitler (döngüler oluştur — daha eğlenceli)
+  const extra = Math.floor(N * N * 0.12);
+  for (let k = 0; k < extra; k++) {
+    const x = Math.floor(Math.random() * N);
+    const y = Math.floor(Math.random() * N);
+    if (Math.random() < 0.5 && x < N - 1) vWall[y][x] = false;
+    else if (y < N - 1) hWall[y][x] = false;
+  }
+
+  const matMazeWall = new THREE.MeshStandardMaterial({ color: 0x6b5f8a, roughness: 0.88 });
+  const matMazeWall2 = new THREE.MeshStandardMaterial({ color: 0x8678a8, roughness: 0.85 });
+  const WH = 3.4, TH = 0.42;
+  const total = N * cell;
+
+  mazeWalls.length = 0;
+
+  // Yatay duvarlar (her hücrenin kuzeyi)
+  for (let y = 0; y <= N; y++) {
+    for (let x = 0; x < N; x++) {
+      const has = (y === 0) || (y === N) || hWall[y][x];
+      if (!has) continue;
+      const cz = origin + y * cell;
+      const cx = origin + x * cell + cell / 2;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(cell + TH, WH, TH), (x + y) % 2 ? matMazeWall : matMazeWall2);
+      m.position.set(cx, WH / 2, cz);
+      m.castShadow = true; m.receiveShadow = true;
+      scene.add(m);
+      obstacles.push({ minX: cx - (cell + TH) / 2, maxX: cx + (cell + TH) / 2, minZ: cz - TH / 2, maxZ: cz + TH / 2, h: WH });
+      mazeWalls.push(m);
+    }
+  }
+  // Dikey duvarlar (her hücrenin batısı)
+  for (let x = 0; x <= N; x++) {
+    for (let y = 0; y < N; y++) {
+      const has = (x === 0) || (x === N) || vWall[y][x];
+      if (!has) continue;
+      const cx = origin + x * cell;
+      const cz = origin + y * cell + cell / 2;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(TH, WH, cell + TH), (x + y) % 2 ? matMazeWall2 : matMazeWall);
+      m.position.set(cx, WH / 2, cz);
+      m.castShadow = true; m.receiveShadow = true;
+      scene.add(m);
+      obstacles.push({ minX: cx - TH / 2, maxX: cx + TH / 2, minZ: cz - (cell + TH) / 2, maxZ: cz + (cell + TH) / 2, h: WH });
+      mazeWalls.push(m);
+    }
+  }
+
+  // Labirent içi saklanma noktaları (çalılar)
+  for (let k = 0; k < 14; k++) {
+    const x = origin + Math.floor(Math.random() * N) * cell + cell / 2;
+    const z = origin + Math.floor(Math.random() * N) * cell + cell / 2;
+    if (Math.hypot(x, z) < 4) continue;
+    addBush(x + rnd(-0.8, 0.8), z + rnd(-0.8, 0.8), 0.7);
+  }
+
+  // Merkez meydan (açık alan)
+  const plaza = new THREE.Mesh(
+    new THREE.CircleGeometry(cell * 0.85, 24),
+    new THREE.MeshStandardMaterial({ color: 0x4a4458, roughness: 0.9 })
+  );
+  plaza.rotation.x = -Math.PI / 2;
+  plaza.position.set(0, 0.03, 0);
+  scene.add(plaza);
+
+  return { origin, cell, N };
 }
 
 /* ==================== DETAYLI PARKUR ==================== */
@@ -54106,84 +54289,82 @@ function addJumpRing(cx, cy, cz, radius = 0.85) {
   return ring;
 }
 
-function buildParkour(offsetX = 0, offsetZ = 0) {
-  /* DÜZGÜN PARKUR: geniş basamaklar, yakın aralıklar (zıplaması kolay).
-     Zıplama menzili: ~3.2 m yatay, ~1.1 m dikey. Basamaklar buna göre yerleştirildi. */
+/* ==================== SONSUZ PARKUR (procedural) ==================== */
+/* Her tur sıfırdan üretilir: yukarı doğru sarmal, giderek zorlaşır.
+   Zıplama menzili: ~3.2 m yatay / 1.1 m dikey. Her basamak buna göre. */
+function buildInfinityParkour(seed = Math.random()) {
+  // basit deterministik rastgele
+  let s0 = Math.floor(seed * 1e9) || 12345;
+  const rand = () => {
+    s0 = (s0 * 1664525 + 1013904223) % 4294967296;
+    return s0 / 4294967296;
+  };
+  const RF = (a, b) => a + rand() * (b - a);
 
   const colors = { grass: 0x6b8f5a, wood: 0x9b6b3f, stone: 0x8d9299, sand: 0xd8c08a };
+  const styleList = ['wood', 'stone', 'grass'];
+  const built = [];
 
-  // Başlangıç rampası (zeminden yumuşak çıkış)
-  const ramp0 = addPlatform(22 + offsetX, 13 + offsetZ, 5.0, 3.6, 0.45, colors.sand);
-  decoratePlatform(ramp0, 'grass');
+  // Başlangıç platformu (geniş, güvenli)
+  const startP = addPlatform(0, 0, 6.0, 6.0, 0.35, colors.sand);
+  decoratePlatform(startP, 'grass');
+  built.push(startP);
 
-  // ANA YOL: soldan sağa ilerleyen geniş basamaklar (her biri +0.7 m, 2.6 m aralık)
-  const mainSteps = [
-    { x: 18.5, z: 11.5, w: 3.4, h: 1.1, style: 'wood'  },
-    { x: 15.4, z: 10.2, w: 3.2, h: 1.8, style: 'stone' },
-    { x: 12.3, z: 9.2,  w: 3.2, h: 2.5, style: 'wood'  },
-    { x: 9.2,  z: 8.4,  w: 3.2, h: 3.2, style: 'grass' },
-    { x: 6.1,  z: 7.8,  w: 3.2, h: 3.9, style: 'stone' },
-    { x: 3.2,  z: 7.4,  w: 3.4, h: 4.6, style: 'wood'  },
-  ];
+  // Sarmal: 14 basamak, her adımda +0.6..0.85 m yükseklik, açıya göre yerleşim
+  let angle = 0;
+  let radius = 5.5;
+  let x = 0, z = 0;
+  let height = 0.35;
 
-  const built = [ramp0];
-  for (let i = 0; i < mainSteps.length; i++) {
-    const st = mainSteps[i];
-    const p = addPlatform(st.x + offsetX, st.z + offsetZ, st.w, st.w, st.h, colors[st.style]);
-    decoratePlatform(p, st.style);
+  const COUNT = 14;
+  for (let i = 0; i < COUNT; i++) {
+    // açı ve yarıçap her adımda değişir → sarmal
+    angle += RF(0.75, 1.15);
+    radius = 4.6 + Math.sin(i * 0.9) * 1.8 + RF(-0.4, 0.6);
+    const nx = Math.cos(angle) * radius;
+    const nz = Math.sin(angle) * radius;
+
+    // yatay mesafe 2.2 - 3.4 arası olacak şekilde sınırla
+    let dx = nx - x, dz = nz - z;
+    let dist = Math.hypot(dx, dz);
+    if (dist < 2.0) { const k = 2.4 / (dist || 1); dx *= k; dz *= k; dist = Math.hypot(dx, dz); }
+    if (dist > 3.3) { const k = 3.3 / dist; dx *= k; dz *= k; }
+
+    x += dx; z += dz;
+    height += RF(0.58, 0.9);
+
+    const sMin = Math.max(2.4, 3.6 - i * 0.07);
+    const style = styleList[Math.floor(rand() * styleList.length)];
+    const p = addPlatform(x, z, sMin, sMin, height, colors[style]);
+    decoratePlatform(p, style);
     built.push(p);
-    if (i % 2 === 1) addFlag(st.x + offsetX - 1.1, st.z + offsetZ - 1.1, st.h, i % 4 === 1 ? matFlagRed : matFlagYellow);
-    if (i % 2 === 0) addLantern(st.x + offsetX + 1.1, st.z + offsetZ + 1.1, st.h);
+
+    // dekor
+    if (i % 3 === 1) addFlag(x - sMin * 0.32, z - sMin * 0.32, height, i % 2 ? matFlagRed : matFlagYellow);
+    if (i % 2 === 0 && i > 0) addLantern(x + sMin * 0.32, z + sMin * 0.32, height);
+    // zıplama halkası (her 4 basamakta)
+    if (i > 0 && i % 4 === 0) addJumpRing(x, height + 1.4, z, 0.85);
   }
 
-  // GENİŞ ARA SAHA (dinlenme + tuzak kurma alanı)
-  const plaza = addPlatform(0.5 + offsetX, 12.0 + offsetZ, 5.0, 5.0, 4.6, colors.grass);
-  decoratePlatform(plaza, 'grass');
-  addFlag(-1.6 + offsetX, 9.9 + offsetZ, 4.6, matFlagRed);
-  addLantern(2.2 + offsetX, 14.0 + offsetZ, 4.6);
-  built.push(plaza);
-
-  // İKİNCİ YOL: sağa doğru yükselen adalar
-  const secondSteps = [
-    { x: -3.0, z: 14.6, h: 5.2, style: 'wood'  },
-    { x: -6.4, z: 15.6, h: 5.8, style: 'stone' },
-    { x: -9.8, z: 15.0, h: 6.4, style: 'grass' },
-    { x: -13.0, z: 13.4, h: 7.0, style: 'wood' },
-  ];
-  for (let i = 0; i < secondSteps.length; i++) {
-    const st = secondSteps[i];
-    const p = addPlatform(st.x + offsetX, st.z + offsetZ, 3.0, 3.0, st.h, colors[st.style]);
-    decoratePlatform(p, st.style);
-    built.push(p);
-    if (i === 1) addLantern(st.x + offsetX + 1.0, st.z + offsetZ, st.h);
-  }
-
-  // ZİRVE (geniş, güvenli)
-  const summit = addPlatform(-15.5 + offsetX, 10.0 + offsetZ, 4.2, 4.2, 7.6, 0xffd166);
+  // ZİRVE
+  const summit = addPlatform(x + 0.4, z + 0.4, 3.4, 3.4, height + 0.75, 0xffd166);
   decoratePlatform(summit, 'wood');
-  addFlag(-16.6 + offsetX, 8.9 + offsetZ, 7.6, matFlagYellow);
-  addFlag(-14.4 + offsetX, 8.9 + offsetZ, 7.6, matFlagRed);
-  addLantern(-15.5 + offsetX, 11.8 + offsetZ, 7.6);
+  addFlag(x - 0.9, z - 0.9, height + 0.75, matFlagYellow);
+  addLantern(x + 1.7, z + 1.7, height + 0.75);
 
   const crown = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.38, 0),
+    new THREE.OctahedronGeometry(0.36, 0),
     new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xff9f1c, emissiveIntensity: 1.3, metalness: 0.65, roughness: 0.22 })
   );
-  crown.position.set(-15.5 + offsetX, 8.6, 10.0 + offsetZ);
+  crown.position.set(x + 0.4, height + 1.7, z + 0.4);
   crown.castShadow = true;
   scene.add(crown);
-  jumpRings.push({ x: -15.5 + offsetX, y: 8.6, z: 10.0 + offsetZ, mesh: crown, radius: 1.0, done: true });
+  jumpRings.push({ x: x + 0.4, y: height + 1.7, z: z + 0.4, mesh: crown, radius: 1.0, done: true });
 
-  // İP KÖPRÜSÜ: plaza → ikinci yol ilk basamağı
-  addRopeBridge(plaza, built[7]);
+  // İp köprüsü (ortada, iki basamak arası)
+  if (built.length > 8) addRopeBridge(built[7], built[8]);
 
-  // ZIPLAMA HALKALARI (basamakların üstünde, havadayken toplanır)
-  addJumpRing(15.4 + offsetX, 2.9, 10.2 + offsetZ, 0.85);
-  addJumpRing(9.2 + offsetX, 4.3, 8.4 + offsetZ, 0.9);
-  addJumpRing(3.2 + offsetX, 5.7, 7.4 + offsetZ, 0.95);
-  addJumpRing(-9.8 + offsetX, 7.5, 15.0 + offsetZ, 0.9);
-
-  return { x: -15.5 + offsetX, z: 10.0 + offsetZ };
+  return { x, z, height };
 }
 
 /* --- Haritayı kur / temizle --- */
@@ -54204,8 +54385,10 @@ function buildMap(mapId) {
   clearWorld();                     // eski haritayı kaldır + listeleri sıfırla
   const before = new Set(scene.children);
   buildWorld(mapId);
-  if (mapId === 'parkour') {
-    buildParkour(0, 0);
+  if (mapId === 'maze') {
+    buildMaze(mapId);
+  } else if (mapId === 'parkour') {
+    buildInfinityParkour(Math.random());
   }
   const added = new Set();
   for (const c of scene.children) {
@@ -54545,7 +54728,7 @@ addEventListener('keydown', (e) => {
     if (state.phase === 'playing') player.wantJump = true;
     e.preventDefault();
   }
-  if (e.code === 'KeyF') useAbility(0);
+  if (e.code === 'KeyF') { if (hasEquippedFreezeGun()) fireFreezeGun(); else useAbility(0); }
   if (e.code === 'KeyG') useAbility(1);
   if (e.code === 'KeyM') { save.settings.bigMap = !save.settings.bigMap; persist(); applyMapSize(); }
   if (e.code === 'Escape' && state.phase === 'playing') pauseGame();
@@ -54558,7 +54741,8 @@ renderer.domElement.addEventListener('mousedown', (e) => {
   if (state.phase !== 'playing') return;
   if (e.button === 0) {
     if (!pointerLocked) requestLock();
-    if (mpState.enabled) { tryCatchPlayerTwo(); }
+    if (hasEquippedFreezeGun() && state.role === 'hider') { fireFreezeGun(); }
+    else if (mpState.enabled) { tryCatchPlayerTwo(); }
     else if (state.role === 'seeker') tryCatch();
   }
 });
@@ -54836,6 +55020,333 @@ function hasLOS(ax, az, bx, bz) {
 }
 
 
+
+/* ==================== ONLINE SUNUCU & ODALAR ==================== */
+/* Basit HTTP tabanlı oda sistemi. Sunucu yoksa çevrimdışı çalışır.
+   Sunucu: /server/index.js (Node.js). Varsayılan API kökü: aynı origin + /api */
+
+const ONLINE = {
+  apiBase: null,        // otomatik bulunur
+  connected: false,
+  playerId: null,
+  name: null,
+  roomCode: null,
+  isHost: false,
+  players: [],
+  pollTimer: null,
+  lastSync: 0,
+  syncTimer: 0,
+  error: '',
+};
+
+function genPlayerId() {
+  return 'p_' + Math.random().toString(36).slice(2, 10);
+}
+
+function detectApiBase() {
+  // Site ile aynı origin'de /api varsa onu kullan
+  const loc = location;
+  if (loc.protocol === 'https:' || loc.protocol === 'http:') {
+    return loc.origin + '/api';
+  }
+  return null;
+}
+
+ONLINE.apiBase = detectApiBase();
+ONLINE.playerId = genPlayerId();
+ONLINE.name = save.settings.playerName || ('Oyuncu' + Math.floor(Math.random() * 900 + 100));
+
+async function apiCall(path, opts = {}) {
+  if (!ONLINE.apiBase) throw new Error('Sunucu yok');
+  const res = await fetch(ONLINE.apiBase + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+async function checkServer() {
+  try {
+    const r = await apiCall('/health');
+    ONLINE.connected = !!r.ok;
+    ONLINE.error = '';
+    return true;
+  } catch (e) {
+    ONLINE.connected = false;
+    ONLINE.error = 'Sunucu bulunamadı';
+    return false;
+  }
+}
+
+async function createRoom() {
+  try {
+    const r = await apiCall('/room/create', {
+      method: 'POST',
+      body: { playerId: ONLINE.playerId, name: ONLINE.name, map: save.settings.map, difficulty: save.settings.difficulty },
+    });
+    ONLINE.roomCode = r.code;
+    ONLINE.isHost = true;
+    ONLINE.players = r.players || [];
+    startPolling();
+    renderLobby();
+    return r.code;
+  } catch (e) {
+    ONLINE.error = e.message || 'Oda oluşturulamadı';
+    renderLobby();
+    return null;
+  }
+}
+
+async function joinRoom(code) {
+  try {
+    const r = await apiCall('/room/join', {
+      method: 'POST',
+      body: { playerId: ONLINE.playerId, name: ONLINE.name, code: code.toUpperCase() },
+    });
+    ONLINE.roomCode = r.code;
+    ONLINE.isHost = false;
+    ONLINE.players = r.players || [];
+    startPolling();
+    renderLobby();
+    return true;
+  } catch (e) {
+    ONLINE.error = 'Oda bulunamadı veya dolu';
+    renderLobby();
+    return false;
+  }
+}
+
+async function leaveRoom() {
+  if (!ONLINE.roomCode) return;
+  try {
+    await apiCall('/room/leave', { method: 'POST', body: { playerId: ONLINE.playerId, code: ONLINE.roomCode } });
+  } catch {}
+  ONLINE.roomCode = null;
+  ONLINE.players = [];
+  ONLINE.isHost = false;
+  stopPolling();
+}
+
+function startPolling() {
+  stopPolling();
+  ONLINE.pollTimer = setInterval(async () => {
+    if (!ONLINE.roomCode) return;
+    try {
+      const r = await apiCall('/room/state?code=' + ONLINE.roomCode + '&playerId=' + ONLINE.playerId);
+      ONLINE.players = r.players || [];
+      ONLINE.isHost = r.hostId === ONLINE.playerId;
+      renderLobby();
+      // oyun başladıysa
+      if (r.started && state.phase !== 'playing') {
+        startOnlineRound(r);
+      }
+      if (r.started && state.phase === 'playing') {
+        applyRemotePlayers(r.players);
+      }
+    } catch (e) {
+      ONLINE.error = 'Bağlantı koptu';
+    }
+  }, 700);
+}
+
+function stopPolling() {
+  if (ONLINE.pollTimer) { clearInterval(ONLINE.pollTimer); ONLINE.pollTimer = null; }
+}
+
+/* Konum gönder (oyun sırasında) */
+async function sendPosition(force = false) {
+  if (!ONLINE.roomCode || state.phase !== 'playing') return;
+  if (!force && performance.now() - ONLINE.lastSync < 200) return;
+  ONLINE.lastSync = performance.now();
+  try {
+    await apiCall('/room/position', {
+      method: 'POST',
+      body: {
+        code: ONLINE.roomCode,
+        playerId: ONLINE.playerId,
+        x: player.pos.x, y: player.y || 0, z: player.pos.z,
+        yaw: player.yaw, role: state.role,
+      },
+    });
+  } catch {}
+}
+
+/* ==================== ONLINE OYUNCU MODELLERİ ==================== */
+const remotePlayers = new Map();   // playerId -> {mesh, pos, yaw, role, lastSeen}
+
+function applyRemotePlayers(players) {
+  for (const p of players) {
+    if (p.id === ONLINE.playerId) continue;
+    let rp = remotePlayers.get(p.id);
+    if (!rp) {
+      const mesh = makeCharacter(p.role === 'seeker' ? null : 0x4ea8de, p.role === 'seeker');
+      scene.add(mesh);
+      rp = { mesh, pos: new THREE.Vector3(p.x, 0, p.z), yaw: p.yaw || 0, role: p.role, name: p.name };
+      remotePlayers.set(p.id, rp);
+    }
+    // yumuşak hareket
+    rp.pos.lerp(new THREE.Vector3(p.x, 0, p.z), 0.35);
+    rp.yaw = p.yaw || 0;
+    rp.y = p.y || 0;
+    rp.mesh.position.set(rp.pos.x, rp.y, rp.pos.z);
+    rp.mesh.rotation.y = rp.yaw;
+    animateCharacter(rp.mesh, 2.5, 0.016, true);
+    // ebe ise yakalama
+    if (rp.role === 'seeker' && state.role === 'hider') {
+      const d = Math.hypot(player.pos.x - rp.pos.x, player.pos.z - rp.pos.z);
+      if (d < 1.5 && Math.abs((player.y || 0) - rp.y) < 1.3 && state.phase === 'playing') {
+        endRound(false, 'Bir ebe seni yakaladı!');
+      }
+    }
+  }
+  // ayrılan oyuncuları sil
+  const ids = new Set(players.map((p) => p.id));
+  for (const [id, rp] of remotePlayers) {
+    if (!ids.has(id)) {
+      scene.remove(rp.mesh);
+      remotePlayers.delete(id);
+    }
+  }
+}
+
+function clearRemotePlayers() {
+  for (const [id, rp] of remotePlayers) scene.remove(rp.mesh);
+  remotePlayers.clear();
+}
+
+/* ==================== ONLINE TUR BAŞLAT ==================== */
+function startOnlineRound(roomState) {
+  const players = roomState.players || [];
+  const me = players.find((p) => p.id === ONLINE.playerId);
+  const useMap = roomState.map || save.settings.map || 'open';
+  if (roomState.difficulty) save.settings.difficulty = roomState.difficulty;
+
+  buildMap(useMap);
+  clearNPCs();
+  clearRemotePlayers();
+
+  // rol dağıt (host atar, herkes roomState.roles'tan okur)
+  const myRole = (roomState.roles && roomState.roles[ONLINE.playerId]) || me?.role || 'hider';
+  state.role = myRole;
+  state.round++;
+  state.time = roomState.time || currentDifficulty().time;
+
+  player.pos.set(0, 0, 0);
+  let tries = 0;
+  while (collides(player.pos.x, player.pos.z, 0.6) && tries++ < 60) player.pos.copy(randomFreePoint());
+  player.y = groundHeightAt(player.pos.x, player.pos.z, 0.4);
+  player.vy = 0; player.yaw = Math.PI; player.pitch = 0;
+
+  $('roleChip').className = 'chip ' + state.role;
+  $('roleTxt').textContent = state.role === 'hider' ? 'SAKLANAN' : 'EBE';
+  document.body.classList.toggle('seeker', state.role === 'seeker');
+  const mapChip = $('mapChip');
+  if (mapChip) {
+    const m = MAPS[useMap] || MAPS.open;
+    mapChip.textContent = m.icon + ' ' + m.name;
+  }
+
+  state.phase = 'playing';
+  $('menu').classList.add('hidden');
+  $('lobby').classList.add('hidden');
+  $('endScreen').classList.add('hidden');
+  $('pause').classList.add('hidden');
+  $('hud').classList.remove('hidden');
+  renderAbilities();
+  renderFreezeHud();
+
+  toast('ONLINE MAÇ!', `${players.length} oyuncu · oda ${ONLINE.roomCode}`, '#8a5ad9', 2400);
+  applyRemotePlayers(players);
+}
+
+/* Lobi arayüzü */
+function renderLobby() {
+  const box = $('lobbyContent');
+  if (!box) return;
+
+  if (!ONLINE.connected) {
+    box.innerHTML = `
+      <div class="lobbyErr">
+        <b>⚠️ Sunucu yok</b><br>
+        Online oyun için sunucunun çalışması gerekir.<br>
+        <small>Sunucu kurulumu: <code>server/</code> klasöründeki README'ye bak.</small>
+      </div>`;
+    return;
+  }
+
+  if (!ONLINE.roomCode) {
+    box.innerHTML = `
+      <div class="row" style="justify-content:center;margin-bottom:14px">
+        <button class="btn primary" id="btnCreateRoom">🎮 Oda Oluştur</button>
+        <button class="btn" id="btnRefresh">🔄 Yenile</button>
+      </div>
+      <div class="joinRow">
+        <input id="joinCode" maxlength="6" placeholder="ODA KODU" />
+        <button class="btn" id="btnJoinRoom">Katıl</button>
+      </div>
+      <p class="sub" style="font-size:12.5px;text-align:center;margin-top:12px">
+        Arkadaşınla aynı odaya girin. Oda kodu 6 karakterlidir.
+      </p>`;
+    $('btnCreateRoom')?.addEventListener('click', () => createRoom());
+    $('btnJoinRoom')?.addEventListener('click', () => {
+      const c = $('joinCode')?.value?.trim();
+      if (c && c.length >= 4) joinRoom(c);
+    });
+    $('btnRefresh')?.addEventListener('click', async () => {
+      await checkServer();
+      renderLobby();
+    });
+    return;
+  }
+
+  // odada
+  const list = ONLINE.players.map((p) => `
+    <div class="lobbyPlayer ${p.id === ONLINE.playerId ? 'me' : ''}">
+      <span class="dot ${p.role === 'seeker' ? 'red' : 'green'}"></span>
+      <b>${escapeHtml(p.name)}</b>
+      ${p.host ? '<span class="badge">ODA SAHİBİ</span>' : ''}
+      ${p.id === ONLINE.playerId ? '<span class="badge on">SEN</span>' : ''}
+    </div>`).join('');
+
+  box.innerHTML = `
+    <div class="roomCode">ODA KODU: <b>${ONLINE.roomCode}</b></div>
+    <p class="sub" style="font-size:12.5px;text-align:center;margin:6px 0 12px">
+      Bu kodu arkadaşına gönder
+    </p>
+    <div class="lobbyList">${list || '<p class="sub">Oyuncu bekleniyor…</p>'}</div>
+    <div class="row" style="margin-top:16px;justify-content:center">
+      ${ONLINE.isHost ? '<button class="btn primary" id="btnStartOnline">▶ Maçı Başlat</button>' : '<button class="btn" disabled>Sunucuyu bekle…</button>'}
+      <button class="btn" id="btnLeaveRoom">Ayrıl</button>
+    </div>`;
+
+  $('btnLeaveRoom')?.addEventListener('click', () => { leaveRoom(); renderLobby(); });
+  $('btnStartOnline')?.addEventListener('click', async () => {
+    try {
+      await apiCall('/room/start', { method: 'POST', body: { code: ONLINE.roomCode, playerId: ONLINE.playerId } });
+    } catch (e) { toast('Başlatılamadı', e.message, '#ff9c9c', 1200); }
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* Lobi göster */
+async function showLobby() {
+  $('menu').classList.add('hidden');
+  $('lobby').classList.remove('hidden');
+  await checkServer();
+  renderLobby();
+}
+
+function hideLobby() {
+  $('lobby').classList.add('hidden');
+  $('menu').classList.remove('hidden');
+  leaveRoom();
+}
+
 /* ==================== 2 OYUNCU (AYNI CİHAZ) ==================== */
 const p2 = {
   active: false,
@@ -54907,7 +55418,7 @@ function startMultiplayerRound() {
   document.body.classList.add('seeker');
 
   // P1 doğuş
-  player.pos.set(selMap === 'parkour' ? 22 : 0, 0, selMap === 'parkour' ? 16 : 14);
+  player.pos.set(0, 0, 0);
   let tries = 0;
   while (collides(player.pos.x, player.pos.z, 0.6) && tries++ < 60) player.pos.copy(randomFreePoint());
   player.y = groundHeightAt(player.pos.x, player.pos.z, 0.4);
@@ -55385,6 +55896,8 @@ function clearNPCs() {
 /* ==================== TUR ==================== */
 function startRound(forceRole = null, mapId = null) {
   clearMultiplayer();
+  clearFreezeFx();
+  if (!ONLINE.roomCode) clearRemotePlayers();
   if (mapId) save.settings.map = mapId;
   const useMap = mapId || save.settings.map || 'open';
   buildMap(useMap);
@@ -55405,7 +55918,8 @@ function startRound(forceRole = null, mapId = null) {
   player.y = 0; player.vy = 0; player.grounded = true; player.wantJump = false;
 
   // haritaya göre doğuş
-  if (useMap === 'parkour') player.pos.set(20, 0, 14);
+  if (useMap === 'parkour') player.pos.set(0, 0, 0);
+  else if (useMap === 'maze') player.pos.set(0, 0, 0);
   else player.pos.set(0, 0, 0);
   let t = 0;
   while (collides(player.pos.x, player.pos.z, 0.6) && t++ < 60) player.pos.copy(randomFreePoint());
@@ -55441,6 +55955,7 @@ function startRound(forceRole = null, mapId = null) {
   $('hud').classList.remove('hidden');
 
   renderAbilities();
+  renderFreezeHud();
 
   toast(
     state.role === 'hider' ? 'SAKLAN!' : 'EBE OLDUN!',
@@ -55480,7 +55995,7 @@ const TRAP_ITEMS = [
 ];
 
 function prepTraps() {
-  trapPoints.n = currentMap === 'parkour' ? 40 : 0;    // parkurda başlangıç bonusu
+  trapPoints.n = currentMap === 'parkour' ? 40 : (currentMap === 'maze' ? 20 : 0);    // parkurda başlangıç bonusu
   trapPointsTotal = 0;
   trapInv.net = 0; trapInv.banana = 0; trapInv.decoy = 0;
   netFreeze = 4; bananaSlip = 2; decoyLife = 5;
@@ -55680,6 +56195,196 @@ function updateTraps(dt) {
       }
     }
   }
+}
+
+
+/* ==================== DONDURMA SİLAHI ==================== */
+/* Silah 600 altın. Mermi olmadan kullanılamaz.
+   Mermi: 5 sn dondurma = 50 altın, 10 sn dondurma = 100 altın. */
+
+const FREEZE_GUN_ID = 'freeze_gun';
+const FREEZE_AMMO = [
+  { id: 'ammo5',  name: 'Kısa Mermi',  freeze: 5,  cost: 50,  icon: '❄️', color: '#7dd3fc', qty: 1 },
+  { id: 'ammo10', name: 'Uzun Mermi',  freeze: 10, cost: 100, icon: '🧊', color: '#38bdf8', qty: 1 },
+];
+const FREEZE_GUN_PRICE = 600;
+
+const freezeState = {
+  // save'den yüklenir (aşağıda)
+  ammo: [],          // {freeze, count}
+  cooldown: 0,
+  beam: null,
+  beamT: 0,
+};
+freezeState.ammo = (save.ammo || []).map((a) => ({ ...a }));
+
+function hasFreezeGun() { return !!save.owned[FREEZE_GUN_ID]; }
+function hasEquippedFreezeGun() { return save.loadout.weapon === FREEZE_GUN_ID && hasFreezeGun(); }
+function totalAmmo() { return freezeState.ammo.reduce((a, b) => a + b.count, 0); }
+
+function buyFreezeGun() {
+  if (hasFreezeGun()) return;
+  if (save.coins < FREEZE_GUN_PRICE) {
+    toast('Yetersiz altın', `${FREEZE_GUN_PRICE - save.coins} 🪙 daha gerek`, '#ff9c9c', 1400);
+    return;
+  }
+  save.coins -= FREEZE_GUN_PRICE;
+  save.owned[FREEZE_GUN_ID] = 1;
+  save.loadout.weapon = FREEZE_GUN_ID;
+  persist();
+  renderShop(); renderMenuStats(); renderFreezeHud();
+  toast('DONDURMA SİLAHI', 'Satın alındı! Şimdi mermi al.', '#7dd3fc', 1800);
+}
+
+function buyAmmo(ammoId) {
+  const a = FREEZE_AMMO.find((x) => x.id === ammoId);
+  if (!a) return;
+  if (!hasFreezeGun()) { toast('Önce silahı al', '', '#ff9c9c', 1200); return; }
+  if (save.coins < a.cost) {
+    toast('Yetersiz altın', `${a.cost - save.coins} 🪙 daha gerek`, '#ff9c9c', 1200);
+    return;
+  }
+  save.coins -= a.cost;
+  const existing = freezeState.ammo.find((x) => x.freeze === a.freeze);
+  if (existing) existing.count += a.qty;
+  else freezeState.ammo.push({ freeze: a.freeze, count: a.qty });
+  save.ammo = freezeState.ammo;
+  persist();
+  renderShop(); renderMenuStats(); renderFreezeHud();
+  toast('MERMİ ALINDI', `${a.freeze} sn dondurma ×${a.qty}`, a.color, 1200);
+}
+
+/* Mermi seç (en uzun süreli önce) */
+function pickAmmo() {
+  const sorted = [...freezeState.ammo].filter((a) => a.count > 0).sort((a, b) => b.freeze - a.freeze);
+  return sorted[0] || null;
+}
+
+/* Silahı ateşle */
+function fireFreezeGun() {
+  if (state.phase !== 'playing' || !hasEquippedFreezeGun()) return;
+  if (freezeState.cooldown > 0) return;
+
+  const ammo = pickAmmo();
+  if (!ammo) {
+    toast('MERMİ YOK', 'Mağazadan mermi al', '#ff9c9c', 1400);
+    freezeState.cooldown = 0.6;
+    return;
+  }
+
+  // hedef yönü: kamera bakışı
+  const dir = new THREE.Vector3(
+    -Math.sin(player.yaw) * Math.cos(player.pitch),
+    Math.sin(player.pitch),
+    -Math.cos(player.yaw) * Math.cos(player.pitch)
+  ).normalize();
+
+  // en yakın uygun hedef (ebe botlar veya P2)
+  let target = null, bestDot = 0.82, bestDist = 40;
+  for (const n of npcs) {
+    if (n.role !== 'seeker' || n.caught) continue;
+    const to = new THREE.Vector3(n.pos.x - player.pos.x, (n.y || 0) + 1.0 - ((player.y || 0) + 1.6), n.pos.z - player.pos.z);
+    const dist = to.length();
+    if (dist > bestDist) continue;
+    to.normalize();
+    const dot = to.dot(dir);
+    if (dot > bestDot) { bestDot = dot; target = n; bestDist = dist; }
+  }
+
+  // mermi harca
+  ammo.count -= 1;
+  freezeState.ammo = freezeState.ammo.filter((a) => a.count > 0);
+  save.ammo = freezeState.ammo;
+  persist();
+  freezeState.cooldown = 1.1;
+
+  // ışın efekti
+  const from = new THREE.Vector3(player.pos.x, (player.y || 0) + 1.55, player.pos.z);
+  const to = target
+    ? new THREE.Vector3(target.pos.x, (target.y || 0) + 1.1, target.pos.z)
+    : from.clone().add(dir.clone().multiplyScalar(22));
+  spawnFreezeBeam(from, to);
+
+  if (target) {
+    target.frozen = Math.max(target.frozen || 0, ammo.freeze);
+    target.slip = 0;
+    target.state = 'search';
+    target.searchT = ammo.freeze;
+    toast('DONDURULDU!', `${ammo.freeze} saniye dondu`, '#7dd3fc', 1100);
+    // buz efekti
+    attachIce(target);
+  } else {
+    toast('Iskaladın', 'Nişan alıp tekrar dene', '#ffd166', 900);
+  }
+  renderFreezeHud();
+}
+
+/* Işın efekti */
+function spawnFreezeBeam(from, to) {
+  const geo = new THREE.BufferGeometry().setFromPoints([from, to]);
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x9be8ff, transparent: true, opacity: 0.95 }));
+  scene.add(line);
+  freezeState.beam = { line, t: 0.25 };
+}
+
+/* Buz kütlesi efekti */
+function attachIce(n) {
+  if (n.iceMesh) return;
+  const ice = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.75, 0),
+    new THREE.MeshStandardMaterial({ color: 0xa5e8ff, transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.3 })
+  );
+  ice.position.set(n.pos.x, (n.y || 0) + 0.9, n.pos.z);
+  scene.add(ice);
+  n.iceMesh = ice;
+}
+
+function removeIce(n) {
+  if (n.iceMesh) { scene.remove(n.iceMesh); n.iceMesh = null; }
+}
+
+/* Her frame: buz efektleri + ışın süresi */
+function updateFreezeFx(dt) {
+  if (freezeState.cooldown > 0) freezeState.cooldown -= dt;
+  if (freezeState.beam) {
+    freezeState.beam.t -= dt;
+    freezeState.beam.line.material.opacity = Math.max(0, freezeState.beam.t * 4);
+    if (freezeState.beam.t <= 0) {
+      scene.remove(freezeState.beam.line);
+      freezeState.beam = null;
+    }
+  }
+  for (const n of npcs) {
+    if (n.iceMesh) {
+      if ((n.frozen || 0) > 0) {
+        n.iceMesh.position.set(n.pos.x, (n.y || 0) + 0.9, n.pos.z);
+        n.iceMesh.rotation.y += dt * 0.6;
+      } else {
+        removeIce(n);
+      }
+    }
+  }
+}
+
+/* HUD: silah ve mermi göstergesi */
+function renderFreezeHud() {
+  const el = $('weaponHud');
+  if (!el) return;
+  if (!hasEquippedFreezeGun()) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const ammo = pickAmmo();
+  const total = totalAmmo();
+  const ice = $('weaponAmmo');
+  const label = $('weaponLabel');
+  if (label) label.textContent = total > 0 ? (ammo ? `${ammo.freeze}sn` : '-') : 'BOŞ';
+  if (ice) ice.textContent = total > 0 ? `×${total}` : '0';
+  el.classList.toggle('empty', total === 0);
+}
+
+/* Harita/oyun sıfırlanınca buzları temizle */
+function clearFreezeFx() {
+  for (const n of npcs) removeIce(n);
+  if (freezeState.beam) { scene.remove(freezeState.beam.line); freezeState.beam = null; }
 }
 
 /* ==================== YETENEKLER ==================== */
@@ -56602,6 +57307,44 @@ function renderShop() {
   $('shopCoins').textContent = save.coins;
   const grid = $('shopGrid');
   grid.innerHTML = '';
+  // === DONDURMA SİLAHI BÖLÜMÜ ===
+  const gunTitle = document.createElement('h2');
+  gunTitle.textContent = '❄️ Dondurma Silahı';
+  gunTitle.style.gridColumn = '1 / -1';
+  grid.appendChild(gunTitle);
+
+  const owned = hasFreezeGun();
+  const gunEl = document.createElement('div');
+  gunEl.className = 'item' + (owned ? ' owned' : '');
+  gunEl.innerHTML = `
+    <div class="top"><span class="ico">🔫</span><span class="nm">Dondurma Silahı</span>
+      ${owned ? '<span class="badge on">SAHİPSİN</span>' : ''}</div>
+    <div class="ds">Nişan aldığın ebeyi mermiyle dondurur. Mermi olmadan çalışmaz.</div>
+    <div class="lvl">${owned ? 'Mermi alttan alınır · F veya Sol tık ile ateş' : 'Mermi: 5 sn = 50 🪙 · 10 sn = 100 🪙'}</div>
+    <div class="foot">
+      <span class="pr">${owned ? 'ALINDI' : FREEZE_GUN_PRICE + ' 🪙'}</span>
+      ${owned ? '' : `<button class="btn small buy" data-gun="1" ${save.coins >= FREEZE_GUN_PRICE ? '' : 'disabled'}>Satın Al</button>`}
+    </div>`;
+  grid.appendChild(gunEl);
+
+  if (owned) {
+    for (const a of FREEZE_AMMO) {
+      const have = freezeState.ammo.find((x) => x.freeze === a.freeze);
+      const el = document.createElement('div');
+      el.className = 'item';
+      el.innerHTML = `
+        <div class="top"><span class="ico">${a.icon}</span><span class="nm">${a.name}</span>
+          <span class="badge">${a.freeze} sn</span></div>
+        <div class="ds">Vurduğun ebeyi ${a.freeze} saniye dondurur.</div>
+        <div class="lvl">Elinde: <b>${have ? have.count : 0}</b> adet</div>
+        <div class="foot">
+          <span class="pr">${a.cost} 🪙</span>
+          <button class="btn small buy" data-ammo="${a.id}" ${save.coins >= a.cost ? '' : 'disabled'}>Al</button>
+        </div>`;
+      grid.appendChild(el);
+    }
+  }
+
   const groups = [
     { slot: 'passive', title: 'Pasif Eşyalar' },
     { slot: 'ability', title: 'Yetenekler' },
@@ -56637,6 +57380,12 @@ function renderShop() {
   }
   grid.querySelectorAll('[data-buy]').forEach((b) => {
     b.onclick = () => buyItem(b.dataset.buy);
+  });
+  grid.querySelectorAll('[data-gun]').forEach((b) => {
+    b.onclick = () => buyFreezeGun();
+  });
+  grid.querySelectorAll('[data-ammo]').forEach((b) => {
+    b.onclick = () => buyAmmo(b.dataset.ammo);
   });
 }
 
@@ -56718,6 +57467,11 @@ function loop() {
     updateTraps(dt);
     updateSmoke(dt);
     updateJumpRings(dt);
+    updateFreezeFx(dt);
+    if (ONLINE.roomCode) {
+      ONLINE.syncTimer += dt;
+      if (ONLINE.syncTimer > 0.2) { ONLINE.syncTimer = 0; sendPosition(true); }
+    }
     noiseEvent = null;
     if (catchCooldown > 0) catchCooldown -= dt;
     updateHUD(dt);
@@ -56761,6 +57515,8 @@ on('shopBack', () => {
 });
 on('installBtn', () => installApp());
 on('mpBtn', () => showMpScreen());
+on('onlineBtn', () => showLobby());
+on('lobbyBack', () => hideLobby());
 on('mpBack', () => hideMpScreen());
 on('mpStart', () => startMultiplayerRound());
 (function bindMp() { bindMpCards(); })();
@@ -56833,6 +57589,9 @@ window.__game = {
   get currentMap() { return currentMap; },
   buildMap, selectMap, MAPS, DIFFICULTY, selectDifficulty, currentDifficulty,
   p2, mpState, startMultiplayerRound, createPlayerTwo, updatePlayerTwo, clearMultiplayer,
+  buyFreezeGun, buyAmmo, fireFreezeGun, hasFreezeGun, hasEquippedFreezeGun, totalAmmo,
+  ONLINE, renderLobby, showLobby, startOnlineRound, clearRemotePlayers,
+  FREEZE_AMMO, FREEZE_GUN_PRICE, get freezeState() { return freezeState; },
   startRound, placeTrap, useAbility, buyItem, endRound, buyTrap, openTrapShop, cycleTrap,
   get save() { return save; },
   get trapInv() { return trapInv; },
