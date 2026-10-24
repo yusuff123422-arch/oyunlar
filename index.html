@@ -107,6 +107,11 @@
     color:#a9c6f0; font-weight:700; }
   .badge.on { background:rgba(125,240,180,.18); color:#7df0b4; }
   .coins { font-size:15px; font-weight:800; color:#ffd166; }
+  /* tuzak dükkanı: HUD pointer-events:none olduğu için elle aç */
+  #trapShop { pointer-events: auto; }
+  #trapShop .shopGrid, #trapShop .item { pointer-events: auto; }
+  #trapShop button { pointer-events: auto; cursor: pointer; }
+  #trapShop button:disabled { opacity: .5; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -166,7 +171,8 @@
     </div>
     <p class="sub" style="margin:14px 0 0; font-size:13px">
       Her tur rolün rastgele: <b>%70 saklanan</b>, <b>%30 ebe</b>. Ebe seni görürse kovalar,
-      yakalanırsan tur biter. Mağazadan aldığın ekipmanla hayatta kal.
+      yakalanırsan tur biter. Haritada <b>8 basamaklı bir parkur</b> var — <b>Boşluk</b> ile zıplayıp
+      yukarı çık, ebeler de tırmanabilir.
     </p>
     <p class="sub" style="margin:10px 0 0;font-size:12.5px;color:#8fa3bd">
       🖱️ <b>Fare kilidi çalışmazsa:</b> oyun içinde fareyle <b>basılı tutup sürükleyerek</b> etrafa bakabilirsin.
@@ -175,6 +181,7 @@
       <div><kbd>W A S D</kbd>Hareket</div>
       <div><kbd>Fare</kbd>Bak</div>
       <div><kbd>Shift</kbd>Koş (ses çıkarır)</div>
+      <div><kbd>Boşluk</kbd>Zıpla / parkur</div>
       <div><kbd>E</kbd>Saklan / çık</div>
       <div><kbd>Q</kbd>Tuzak dükkanı (puanla)</div>
       <div><kbd>R</kbd>Tuzak kur</div>
@@ -53735,6 +53742,64 @@ for (let i = 0; i < 10; i++) {
   scene.add(pond);
 }
 
+
+/* ==================== PARKUR (platformlar + zıplama) ==================== */
+/* Platformlar: yüksekliği olan, üstüne çıkılabilen kutular */
+const platforms = [];   // {minX,maxX,minZ,maxZ,top}
+const PLATFORM_STEP = 0.55;   // bu kadar yükseklik farkı otomatik tırmanılır
+const GRAVITY = 22;
+const JUMP_V = 8.2;
+
+function addPlatform(cx, cz, w, d, top, color) {
+  const h = top;
+  const mat = new THREE.MeshStandardMaterial({ color: color ?? 0x8a6b4a, roughness: 0.8 });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(cx, h / 2, cz);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  const b = { minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2, top: h };
+  platforms.push(b);
+  return b;
+}
+
+/* Zemin yüksekliği: bir noktadaki en yüksek platform */
+function groundHeightAt(x, z, r = 0.35) {
+  let h = 0;
+  for (const p of platforms) {
+    if (x + r > p.minX && x - r < p.maxX && z + r > p.minZ && z - r < p.maxZ) {
+      if (p.top > h) h = p.top;
+    }
+  }
+  return h;
+}
+
+/* Parkur rotası (yukarı doğru sarmal) */
+function buildParkour() {
+  const start = { x: 20, z: 16 };
+  const steps = [
+    { dx: 0, dz: -3.2, w: 3.0, d: 3.0, top: 0.9 },
+    { dx: 3.2, dz: -3.4, w: 2.6, d: 2.6, top: 1.8 },
+    { dx: 3.0, dz: -3.6, w: 2.4, d: 2.4, top: 2.7 },
+    { dx: -3.2, dz: -3.0, w: 2.2, d: 2.2, top: 3.5 },
+    { dx: -3.0, dz: 2.4, w: 2.2, d: 2.2, top: 4.3 },
+    { dx: 0, dz: 3.4, w: 2.4, d: 2.4, top: 5.1 },
+    { dx: 3.4, dz: 1.6, w: 2.6, d: 2.6, top: 5.9 },
+    { dx: 3.2, dz: -1.6, w: 3.0, d: 3.0, top: 6.7 },
+  ];
+  let x = start.x, z = start.z;
+  const colors = [0x9b6b3f, 0x8a7b5a, 0x7a6b8a, 0x6b8a7a, 0x8a6b6b, 0x6b7a8a, 0x9a8a5a, 0x7a8a6b];
+  steps.forEach((s, i) => {
+    x += s.dx; z += s.dz;
+    addPlatform(x, z, s.w, s.d, s.top, colors[i % colors.length]);
+  });
+  // zirve: küçük bir kule
+  addPlatform(x + 0.4, z - 0.4, 2.2, 2.2, 7.6, 0xffd166);
+  return { x, z };
+}
+
+// Parkuru inşa et
+const PARKOUR_TOP = buildParkour();
+
 /* ==================== KARAKTER ==================== */
 function makeCharacter(bodyColor, isSeeker) {
   const g = new THREE.Group();
@@ -53742,44 +53807,118 @@ function makeCharacter(bodyColor, isSeeker) {
   const skin = new THREE.MeshStandardMaterial({ color: 0xf2cba6, roughness: 0.8 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x26303f, roughness: 0.9 });
 
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.55, 6, 12), bodyMat);
-  torso.position.y = 1.05; torso.castShadow = true; g.add(torso);
+  // --- gövde (pivot: kalça) ---
+  const body = new THREE.Group();
+  body.position.y = 0.95;
+  g.add(body);
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.5, 6, 12), bodyMat);
+  torso.position.y = 0.32; torso.castShadow = true; body.add(torso);
 
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 12), skin);
-  head.position.y = 1.62; head.castShadow = true; g.add(head);
+  head.position.y = 0.88; head.castShadow = true; body.add(head);
 
   const eyeMat = new THREE.MeshStandardMaterial({ color: 0x11161d });
   for (const sx of [-0.08, 0.08]) {
     const e = new THREE.Mesh(new THREE.SphereGeometry(0.037, 8, 8), eyeMat);
-    e.position.set(sx, 1.65, 0.2); g.add(e);
+    e.position.set(sx, 0.91, 0.2); body.add(e);
   }
 
+  // --- kollar (omuz pivotu) ---
   const arms = [];
   for (const sx of [-0.34, 0.34]) {
-    const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.45, 4, 8), bodyMat);
-    a.position.set(sx, 1.12, 0); a.castShadow = true; g.add(a); arms.push(a);
+    const pivot = new THREE.Group();
+    pivot.position.set(sx, 0.62, 0);
+    const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.42, 4, 8), bodyMat);
+    a.position.y = -0.24; a.castShadow = true;
+    pivot.add(a);
+    body.add(pivot);
+    arms.push(pivot);
   }
+
+  // --- bacaklar (kalça pivotu) ---
   const legs = [];
   for (const sx of [-0.13, 0.13]) {
-    const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.46, 4, 8), dark);
-    l.position.set(sx, 0.44, 0); l.castShadow = true; g.add(l); legs.push(l);
+    const pivot = new THREE.Group();
+    pivot.position.set(sx, -0.05, 0);
+    const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.42, 4, 8), dark);
+    l.position.y = -0.3; l.castShadow = true;
+    pivot.add(l);
+    body.add(pivot);
+    legs.push(pivot);
   }
 
   if (isSeeker) {
     const cap = new THREE.Mesh(new THREE.ConeGeometry(0.31, 0.32, 14),
       new THREE.MeshStandardMaterial({ color: 0xe5484d, roughness: 0.5 }));
-    cap.position.y = 1.9; cap.castShadow = true; g.add(cap);
+    cap.position.y = 1.18; cap.castShadow = true; body.add(cap);
   } else {
     const mark = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.033, 8, 18),
       new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffb703, emissiveIntensity: 1.4 }));
-    mark.position.y = 2.2; mark.rotation.x = Math.PI / 2;
-    g.add(mark);
+    mark.position.y = 1.5; mark.rotation.x = Math.PI / 2;
+    body.add(mark);
     g.userData.mark = mark;
   }
 
   g.userData.legs = legs;
   g.userData.arms = arms;
+  g.userData.body = body;
+  g.userData.head = head;
+  g.userData.phase = Math.random() * 6.28;
+  g.userData.jumpY = 0;
   return g;
+}
+
+/* --- karakter animasyonu: yürüme / koşma / zıplama --- */
+function animateCharacter(mesh, speed, dt, grounded = true, verticalVel = 0) {
+  const legs = mesh.userData.legs;
+  const arms = mesh.userData.arms;
+  const body = mesh.userData.body;
+  if (!legs || !arms || !body) return;
+
+  const u = mesh.userData;
+  const moving = speed > 0.35;
+
+  if (!moving) {
+    // nefes alma
+    u.phase += dt * 1.6;
+    const breathe = Math.sin(u.phase) * 0.012;
+    body.position.y = 0.95 + breathe;
+    legs[0].rotation.x *= 0.85;
+    legs[1].rotation.x *= 0.85;
+    arms[0].rotation.x *= 0.85;
+    arms[1].rotation.x *= 0.85;
+    body.rotation.z *= 0.85;
+    return;
+  }
+
+  // adım frekansı hıza bağlı
+  const stride = Math.min(speed / 4, 2.4);
+  u.phase += dt * (5.5 + stride * 3.2);
+
+  const swing = Math.sin(u.phase);
+  const amp = Math.min(0.45 + stride * 0.28, 1.05);
+
+  // havada ise bacaklar toplanır
+  if (!grounded) {
+    legs[0].rotation.x = -0.7;
+    legs[1].rotation.x = 0.45;
+    arms[0].rotation.x = -1.3;
+    arms[1].rotation.x = -1.3;
+    body.rotation.z = 0;
+    body.position.y = 0.95;
+    return;
+  }
+
+  legs[0].rotation.x = swing * amp;
+  legs[1].rotation.x = -swing * amp;
+  arms[0].rotation.x = -swing * amp * 0.85;
+  arms[1].rotation.x = swing * amp * 0.85;
+
+  // gövde sallanması + öne eğilme
+  body.rotation.z = Math.cos(u.phase) * 0.05 * stride;
+  body.rotation.x = stride > 1.4 ? 0.12 : 0.04 * stride;
+  body.position.y = 0.95 + Math.abs(Math.sin(u.phase)) * 0.045 * stride;
 }
 
 /* ==================== OYUNCU ==================== */
@@ -53790,6 +53929,7 @@ const player = {
   stamina: 100, staminaMax: 100, exhausted: false,
   hidden: null, bob: 0, stepTimer: 0, stun: 0,
   sprintT: 0, sprintCd: 0, sprintMult: 1,
+  y: 0, vy: 0, grounded: true, jumps: 0,
 };
 
 /* ==================== GİRDİ ==================== */
@@ -53797,12 +53937,14 @@ const keys = Object.create(null);
 let pointerLocked = false;
 
 addEventListener('keydown', (e) => {
+  if (e.code === 'Escape' && trapShopOpen) { closeTrapShop(); return; }
   if (keys[e.code]) return;
   keys[e.code] = true;
   if (e.code === 'KeyE') tryInteract();
   if (e.code === 'KeyQ') openTrapShop();
   if (e.code === 'KeyR') placeTrap();
   if (e.code === 'KeyT') cycleTrap();
+  if (e.code === 'Space' && state.phase === 'playing') { player.wantJump = true; }
   if (e.code === 'KeyF') useAbility(0);
   if (e.code === 'KeyG') useAbility(1);
   if (e.code === 'KeyM') { save.settings.bigMap = !save.settings.bigMap; persist(); applyMapSize(); }
@@ -53856,7 +53998,7 @@ addEventListener('resize', () => {
 });
 
 /* ==================== FİZİK / GÖRÜŞ ==================== */
-function collides(x, z, r) {
+function collides(x, z, r, feetY = 0) {
   if (x - r < -WALK || x + r > WALK || z - r < -WALK || z + r > WALK) return true;
   for (const b of obstacles) {
     const cx = Math.max(b.minX, Math.min(x, b.maxX));
@@ -53864,12 +54006,49 @@ function collides(x, z, r) {
     const dx = x - cx, dz = z - cz;
     if (dx * dx + dz * dz < r * r) return true;
   }
+  // platformlar: üstüne çıkılabiliyorsa engel değil
+  for (const p of platforms) {
+    if (x + r > p.minX && x - r < p.maxX && z + r > p.minZ && z - r < p.maxZ) {
+      if (p.top > feetY + PLATFORM_STEP) return true;
+    }
+  }
   return false;
 }
 
 function moveEntity(ent, dx, dz, r) {
-  if (!collides(ent.pos.x + dx, ent.pos.z, r)) ent.pos.x += dx;
-  if (!collides(ent.pos.x, ent.pos.z + dz, r)) ent.pos.z += dz;
+  const fy = ent.y || 0;
+  if (!collides(ent.pos.x + dx, ent.pos.z, r, fy)) ent.pos.x += dx;
+  if (!collides(ent.pos.x, ent.pos.z + dz, r, fy)) ent.pos.z += dz;
+}
+
+/* Dikey fizik: yerçekimi, zıplama, platform üstüne iniş */
+function updateVertical(ent, dt, canJump, jumpPressed) {
+  const ground = groundHeightAt(ent.pos.x, ent.pos.z, 0.3);
+  ent.y = ent.y ?? 0;
+  ent.vy = ent.vy ?? 0;
+
+  // zemine otomatik tırmanma (küçük basamaklar)
+  if (ent.y < ground && ground - ent.y <= PLATFORM_STEP + 0.35) {
+    ent.y = ground;
+    ent.vy = 0;
+  }
+
+  if (canJump && jumpPressed && ent.y <= ground + 0.05) {
+    ent.vy = JUMP_V;
+    ent.grounded = false;
+    return true;
+  }
+
+  ent.vy -= GRAVITY * dt;
+  ent.y += ent.vy * dt;
+
+  if (ent.y <= ground) {
+    ent.y = ground;
+    ent.vy = 0;
+    ent.grounded = true;
+  } else {
+    ent.grounded = false;
+  }
 }
 
 function segBox(x1, z1, x2, z2, b) {
@@ -53925,6 +54104,22 @@ function lerpAngle(a, b, t) {
 }
 
 /* ==================== NAVİGASYON: ileri görüşlü yol noktası ==================== */
+/* Botlar için: en yakın platform rampasını bul (parkura tırmanmak için) */
+function nearestPlatformRamp(from, to) {
+  if (!platforms.length) return null;
+  // hedefe yakın, yüksekliği erişilebilir bir platform
+  let best = null, bestScore = 1e9;
+  for (const p of platforms) {
+    const cx = (p.minX + p.maxX) / 2, cz = (p.minZ + p.maxZ) / 2;
+    const dToTarget = Math.hypot(cx - to.x, cz - to.z);
+    const dFrom = Math.hypot(cx - from.x, cz - from.z);
+    if (dToTarget > 8) continue;
+    const score = dFrom + p.top * 0.6;
+    if (score < bestScore) { bestScore = score; best = { x: cx, z: cz, top: p.top }; }
+  }
+  return best;
+}
+
 function smartWaypoint(from, to, avoidPlayer = false) {
   // hedefe doğrudan git; önünde engel varsa açı tarayarak en iyi yönü bul
   const base = Math.atan2(to.x - from.x, to.z - from.z);
@@ -53968,7 +54163,7 @@ function spawnNPC(role, awayFrom, minD) {
     target: randomFreePoint(p, 6),
     speed: 2.6, seeT: 0, loseT: 0, lastSeen: null,
     searchT: 0, searchCenter: null, wanderT: rnd(0, 3),
-    caught: false, frozen: 0, slip: 0,
+    caught: false, frozen: 0, slip: 0, y: 0, vy: 0, grounded: true,
     // AI hafızası
     memory: [],           // son görülen noktalar
     suspicious: null,     // şüpheli nokta
@@ -54008,6 +54203,7 @@ function startRound(forceRole = null) {
   player.exhausted = false;
   player.hidden = null; player.pitch = 0; player.stun = 0;
   player.sprintT = 0; player.sprintCd = 0; player.sprintMult = 1;
+  player.y = 0; player.vy = 0; player.grounded = true; player.wantJump = false;
 
   player.pos.set(0, 0, 0);
   let t = 0;
@@ -54056,6 +54252,7 @@ let trapPointsTotal = 0;              // bu turda toplanan toplam
 const trapInv = { net: 0, banana: 0, decoy: 0 };
 let netFreeze = 4, bananaSlip = 2, decoyLife = 5;
 let trapShopOpen = false;
+let paused = false;            // dükkan/menü açıkken oyun dursun
 let selectedTrap = 'net';
 
 const TRAP_ITEMS = [
@@ -54104,6 +54301,7 @@ function openTrapShop() {
   if (state.phase !== 'playing' || state.role !== 'hider') return;
   if (trapShopOpen) { closeTrapShop(); return; }
   trapShopOpen = true;
+  paused = true;                       // dükkan açıkken oyun dursun
   document.exitPointerLock?.();
   renderTrapShop();
   $('trapShop').classList.remove('hidden');
@@ -54111,6 +54309,7 @@ function openTrapShop() {
 
 function closeTrapShop() {
   trapShopOpen = false;
+  paused = false;
   $('trapShop').classList.add('hidden');
   if (state.phase === 'playing') requestLock();
 }
@@ -54128,16 +54327,22 @@ function renderTrapShop() {
       <div class="top"><span class="ico">${item.icon}</span><span class="nm">${item.name}</span>
         <span class="badge">${item.dur()}</span></div>
       <div class="ds">${item.desc}</div>
-      <div class="lvl">Elinde: ${trapInv[item.id]}</div>
+      <div class="lvl">Elinde: <b>${trapInv[item.id]}</b></div>
       <div class="foot">
         <span class="pr">${item.cost} puan${item.count > 1 ? ` · ${item.count} adet` : ''}</span>
         <button class="btn small buy" data-trap="${item.id}" ${canBuy ? '' : 'disabled'}>Al</button>
       </div>`;
+    // tıklama doğrudan (pointer-events sorunlarını aşmak için)
+    const btn = el.querySelector('button');
+    if (btn) {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        buyTrap(item.id);
+      });
+      btn.addEventListener('mousedown', (ev) => ev.stopPropagation());
+    }
     grid.appendChild(el);
   }
-  grid.querySelectorAll('[data-trap]').forEach((b) => {
-    b.onclick = () => buyTrap(b.dataset.trap);
-  });
 }
 
 function buyTrap(id) {
@@ -54401,6 +54606,7 @@ function updatePlayer(dt) {
     const c = player.hidden;
     const dir = V(player.pos.x - c.x, player.pos.z - c.z).normalize();
     player.yaw = Math.atan2(-dir.x, -dir.z);
+    player.y = 0; player.vy = 0;
     return;
   }
 
@@ -54432,6 +54638,11 @@ function updatePlayer(dt) {
 
   const step = player.vel.clone().multiplyScalar(dt);
   moveEntity(player, step.x, step.z, cfg.radius);
+
+  // zıplama ve yerçekimi
+  const jumped = updateVertical(player, dt, !player.hidden, player.wantJump);
+  if (jumped) player.jumps++;
+  player.wantJump = false;
 
   if (moving) {
     player.stepTimer -= dt;
@@ -54478,7 +54689,8 @@ function updateSeekerNPC(n, dt) {
 
   const inCone = cosAngle > (dist < 6 ? 0.1 : 0.3);   // yakında daha geniş görüş
   const los = hasLOS(n.pos.x, n.pos.z, player.pos.x, player.pos.z);
-  const canSee = !inSmoke && dist < range && inCone && los;
+  const heightDiff = Math.abs((n.y || 0) - (player.y || 0));
+  const canSee = !inSmoke && dist < range && inCone && los && heightDiff < 4.5;
 
   // --- görüş ---
   if (canSee) {
@@ -54551,8 +54763,18 @@ function updateSeekerNPC(n, dt) {
 
   // --- durum makinesi ---
   if (n.state === 'chase') {
-    // hedefe doğrudan, engel varsa dolan
-    n.target = smartWaypoint(n.pos, player.pos);
+    // oyuncu yüksek bir platformdaysa önce oraya tırman
+    const playerHigh = (player.y || 0) > (n.y || 0) + 0.8;
+    if (playerHigh) {
+      const ramp = nearestPlatformRamp(n.pos, player.pos);
+      if (ramp && Math.hypot(ramp.x - n.pos.x, ramp.z - n.pos.z) > 1.2) {
+        n.target = smartWaypoint(n.pos, V(ramp.x, ramp.z));
+      } else {
+        n.target = smartWaypoint(n.pos, player.pos);
+      }
+    } else {
+      n.target = smartWaypoint(n.pos, player.pos);
+    }
     n.speed = 5.0 * n.personality;
     n.lookT = 0;
   } else if (n.state === 'investigate') {
@@ -54670,18 +54892,17 @@ function moveNPC(n, dt) {
   const wantYaw = Math.atan2(-to.x, -to.z);
   n.yaw = lerpAngle(n.yaw, wantYaw, Math.min(1, dt * 8));
 
-  n.mesh.position.set(n.pos.x, 0, n.pos.z);
+  // dikey fizik (botlar da platformlara çıkabilir)
+  n.y = n.y ?? 0; n.vy = n.vy ?? 0;
+  const g = groundHeightAt(n.pos.x, n.pos.z, 0.3);
+  if (n.y < g && g - n.y <= PLATFORM_STEP + 0.35) { n.y = g; n.vy = 0; n.grounded = true; }
+  n.vy -= GRAVITY * dt;
+  n.y += n.vy * dt;
+  if (n.y <= g) { n.y = g; n.vy = 0; n.grounded = true; } else n.grounded = false;
+
+  n.mesh.position.set(n.pos.x, n.y, n.pos.z);
   n.mesh.rotation.y = n.yaw;
-  const t = performance.now() / 1000;
-  const swing = Math.sin(t * 10) * 0.5 * Math.min(1, n.speed / 3);
-  if (n.mesh.userData.legs) {
-    n.mesh.userData.legs[0].rotation.x = swing;
-    n.mesh.userData.legs[1].rotation.x = -swing;
-  }
-  if (n.mesh.userData.arms) {
-    n.mesh.userData.arms[0].rotation.x = -swing * 0.8;
-    n.mesh.userData.arms[1].rotation.x = swing * 0.8;
-  }
+  animateCharacter(n.mesh, n.speed, dt, n.grounded, n.vy || 0);
 }
 
 /* ==================== SİS ==================== */
@@ -54989,7 +55210,7 @@ function applySensLabel() {
 
 /* ==================== KAMERA ==================== */
 function updateCamera(dt) {
-  const eye = player.hidden ? 1.15 : cfg.eye;
+  const eye = (player.hidden ? 1.15 : cfg.eye) + (player.y || 0);
   camera.position.x = player.pos.x;
   camera.position.z = player.pos.z;
   camera.position.y = THREE.MathUtils.lerp(camera.position.y, eye, Math.min(1, dt * 10));
@@ -55015,7 +55236,7 @@ function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05);
 
-  if (state.phase === 'playing') {
+  if (state.phase === 'playing' && !paused) {
     updatePlayer(dt);
     for (const n of npcs) {
       if (n.caught) continue;
