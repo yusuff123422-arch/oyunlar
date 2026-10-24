@@ -168,6 +168,9 @@
       Her tur rolün rastgele: <b>%70 saklanan</b>, <b>%30 ebe</b>. Ebe seni görürse kovalar,
       yakalanırsan tur biter. Mağazadan aldığın ekipmanla hayatta kal.
     </p>
+    <p class="sub" style="margin:10px 0 0;font-size:12.5px;color:#8fa3bd">
+      🖱️ <b>Fare kilidi çalışmazsa:</b> oyun içinde fareyle <b>basılı tutup sürükleyerek</b> etrafa bakabilirsin.
+    </p>
     <div class="keys">
       <div><kbd>W A S D</kbd>Hareket</div>
       <div><kbd>Fare</kbd>Bak</div>
@@ -178,7 +181,7 @@
       <div><kbd>T</kbd>Tuzak değiştir</div>
       <div><kbd>F</kbd>Sprint patlaması</div>
       <div><kbd>G</kbd>Ebe radarı</div>
-      <div><kbd>Esc</kbd>Duraklat</div>
+      <div><kbd>Esc</kbd> / <kbd>P</kbd> Duraklat</div>
       <div><kbd>Sol tık</kbd>Yakala (ebe)</div>
       <div><kbd>M</kbd>Mini harita büyüt</div>
     </div>
@@ -217,7 +220,7 @@
 <div class="overlay hidden" id="pause">
   <div class="panel" style="text-align:center">
     <h1 style="font-size:26px">Duraklatıldı</h1>
-    <p class="sub" style="margin-bottom:16px" id="pauseSub">Devam etmek için tıkla.</p>
+    <p class="sub" style="margin-bottom:16px" id="pauseSub">Devam etmek için tıkla. (Fare kilidi kapalıysa sürükleyerek bakabilirsin.)</p>
     <div class="row" style="justify-content:center">
       <button class="btn primary" id="resumeBtn">Devam Et</button>
       <button class="btn" id="quitBtn">Menüye Dön</button>
@@ -53804,28 +53807,47 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyG') useAbility(1);
   if (e.code === 'KeyM') { save.settings.bigMap = !save.settings.bigMap; persist(); applyMapSize(); }
   if (e.code === 'Escape' && state.phase === 'playing') pauseGame();
+  if (e.code === 'KeyP' && state.phase === 'playing') pauseGame();
   if (['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 
 renderer.domElement.addEventListener('mousedown', (e) => {
   if (state.phase !== 'playing') return;
-  if (!pointerLocked) { renderer.domElement.requestPointerLock?.(); return; }
-  if (e.button === 0 && state.role === 'seeker') tryCatch();
+  if (e.button === 0) {
+    if (!pointerLocked) requestLock();
+    if (state.role === 'seeker') tryCatch();
+  }
 });
 
 document.addEventListener('pointerlockchange', () => {
   pointerLocked = document.pointerLockElement === renderer.domElement;
-  if (!pointerLocked && state.phase === 'playing') pauseGame();
+  // Pointer lock kaybolsa bile oyunu duraklatma — sadece fare kontrolünü bırak.
+  // (Bazı tarayıcılar/pencereler pointer lock'u sürekli iptal ediyor.)
 });
 
+let dragging = false;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (state.phase === 'playing' && !pointerLocked) dragging = true;
+});
+addEventListener('pointerup', () => { dragging = false; });
+
 addEventListener('mousemove', (e) => {
-  if (!pointerLocked) return;
-  const s = SENS_LEVELS[cfg.sensIdx].v;
+  if (state.phase !== 'playing') return;
+  if (!pointerLocked && !dragging) return;      // kilit yoksa sürükleyerek bak
+  const s = SENS_LEVELS[cfg.sensIdx].v * (pointerLocked ? 1 : 1.6);
   player.yaw -= e.movementX * s;
   player.pitch -= e.movementY * s * (cfg.invertY ? -1 : 1);
   player.pitch = Math.max(-1.3, Math.min(1.3, player.pitch));
 });
+
+// Pointer lock'u güvenli şekilde iste (hata olursa sessizce geç)
+function requestLock() {
+  try {
+    const p = renderer.domElement.requestPointerLock?.();
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) { /* yoksay */ }
+}
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
@@ -54023,7 +54045,7 @@ function startRound(forceRole = null) {
     state.role === 'hider' ? '#7df0b4' : '#ff9c9c'
   );
 
-  renderer.domElement.requestPointerLock?.();
+  requestLock();
 }
 
 /* ==================== TUZAK DÜKKANI (tur içi, puanla) ==================== */
@@ -54069,7 +54091,7 @@ function addTrapPoints(n) {
 
 function updateTrapHud() {
   const el = $('trapPoints');
-  if (el) el.textContent = trapPoints.n;
+  if (el) el.textContent = Math.floor(trapPoints.n);
   const inv = $('trapInv');
   if (inv) {
     inv.textContent = `🕸️${trapInv.net}  🍌${trapInv.banana}  🎭${trapInv.decoy}`;
@@ -54090,16 +54112,16 @@ function openTrapShop() {
 function closeTrapShop() {
   trapShopOpen = false;
   $('trapShop').classList.add('hidden');
-  if (state.phase === 'playing') renderer.domElement.requestPointerLock?.();
+  if (state.phase === 'playing') requestLock();
 }
 
 function renderTrapShop() {
   const grid = $('trapGrid');
   if (!grid) return;
-  $('trapShopPoints').textContent = trapPoints.n;
+  $('trapShopPoints').textContent = Math.floor(trapPoints.n);
   grid.innerHTML = '';
   for (const item of TRAP_ITEMS) {
-    const canBuy = trapPoints.n >= item.cost;
+    const canBuy = Math.floor(trapPoints.n) >= item.cost;
     const el = document.createElement('div');
     el.className = 'item';
     el.innerHTML = `
@@ -54120,7 +54142,7 @@ function renderTrapShop() {
 
 function buyTrap(id) {
   const item = TRAP_ITEMS.find((t) => t.id === id);
-  if (!item || trapPoints.n < item.cost) return;
+  if (!item || Math.floor(trapPoints.n) < item.cost) return;
   trapPoints.n -= item.cost;
   trapInv[id] += item.count;
   updateTrapHud();
@@ -54756,7 +54778,7 @@ function updateHUD(dt) {
   $('timer').classList.toggle('warn', state.time < 15);
   $('timeVal').textContent = fmtTime(state.time);
   $('coinVal').textContent = save.coins;
-  $('trapPoints').textContent = trapPoints.n;
+  $('trapPoints').textContent = Math.floor(trapPoints.n);
   const invTxt = `🕸️${trapInv.net} 🍌${trapInv.banana} 🎭${trapInv.decoy}`;
   if ($('trapInv').textContent !== invTxt) $('trapInv').textContent = invTxt;
   $('stamina').style.width = (player.stamina / player.staminaMax * 100) + '%';
@@ -54840,7 +54862,7 @@ function endRound(win, reason = '') {
   $('endStats').innerHTML = `
     <div class="stat"><span>Rol</span><b>${state.role === 'hider' ? 'Saklanan' : 'Ebe'}</b></div>
     <div class="stat"><span>Kazanılan para</span><b style="color:#ffd166">+${gained} 🪙</b></div>
-    <div class="stat"><span>Tur içi tuzak puanı</span><b>${trapPointsTotal} puan${leftover > 0 ? ' · +' + leftover + ' 🪙' : ''}</b></div>
+    <div class="stat"><span>Tur içi tuzak puanı</span><b>${Math.floor(trapPointsTotal)} puan${leftover > 0 ? ' · +' + leftover + ' 🪙' : ''}</b></div>
     <div class="stat"><span>Deneyim</span><b style="color:#7df0b4">+${xpGain} XP</b></div>
     <div class="stat"><span>Toplam para</span><b>${save.coins} 🪙</b></div>
     <div class="stat"><span>Seviye</span><b>${save.level}</b></div>
@@ -54860,7 +54882,7 @@ function pauseGame() {
 function resumeGame() {
   $('pause').classList.add('hidden');
   state.phase = 'playing';
-  renderer.domElement.requestPointerLock?.();
+  requestLock();
 }
 function toMenu() {
   state.phase = 'menu';
