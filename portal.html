@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oyunlar</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{min-height:100vh;background:#07080c;color:#e8eef7;
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
+  h1{font-size:38px;letter-spacing:-1px;margin-bottom:6px}
+  h1 span{color:#7df0b4}
+  .sub{color:#8fa3bd;font-size:14px;margin-bottom:36px;text-align:center}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;
+    width:min(760px,100%)}
+  a.card{text-decoration:none;color:inherit;display:block;border-radius:20px;padding:26px 22px;
+    background:rgba(255,255,255,.035);border:2px solid rgba(120,170,255,.16);
+    transition:all .2s;position:relative;overflow:hidden}
+  a.card:hover{transform:translateY(-4px);border-color:rgba(120,170,255,.5);
+    background:rgba(255,255,255,.06);box-shadow:0 18px 50px rgba(0,0,0,.5)}
+  a.card.horror:hover{border-color:rgba(160,20,20,.7);box-shadow:0 18px 60px rgba(120,0,0,.35)}
+  .icon{font-size:38px;margin-bottom:12px}
+  .name{font-size:19px;font-weight:800;margin-bottom:6px}
+  a.card.horror .name{color:#c94b4b}
+  a.card.parkour .name{color:#7df0b4}
+  .desc{font-size:12.5px;color:#8fa3bd;line-height:1.6}
+  .tag{display:inline-block;margin-top:12px;font-size:10px;letter-spacing:1.5px;
+    padding:3px 9px;border-radius:20px;font-weight:800}
+  .tag.new{background:rgba(255,60,60,.18);color:#ff8a8a}
+  .tag.hot{background:rgba(125,240,180,.15);color:#7df0b4}
+  .tag.warn{background:rgba(255,180,60,.15);color:#ffc861}
+  footer{margin-top:40px;font-size:11.5px;color:#4a5568;text-align:center;line-height:1.8}
+</style>
+</head>
+<body>
+  <h1>Oyun<span>lar</span></h1>
+  <p class="sub">Tarayıcıda çalışan oyunlar · indirme yok · ücretsiz</p>
+
+  <div class="grid">
+    <a class="card horror" href="./karanlik/">
+      <div class="icon">🩸</div>
+      <div class="name">KARANLIK</div>
+      <div class="desc">Elektrikler kesildi. Evde yalnız değilsin. Sigortaları bul, çıkış kapısını aç — ama o seni duyuyor.</div>
+      <span class="tag new">KORKU · JUMP SCARE</span>
+    </a>
+
+    <a class="card parkour" href="./">
+      <div class="icon">🎮</div>
+      <div class="name">Hide and Seek 3D</div>
+      <div class="desc">Saklambaç, ama 3D. 3 harita, tuzaklar, dondurma silahı, zorluk seviyeleri ve 2 oyunculu mod.</div>
+      <span class="tag hot">3 HARİTA · ONLINE</span>
+    </a>
+  </div>
+
+  <footer>
+    Her iki oyun da tek dosya olarak çalışır · WebGL gerekir<br>
+    Ses açık ve kulaklık önerilir
+  </footer>
+</body>
+</html>
