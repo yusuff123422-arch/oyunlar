@@ -53413,9 +53413,9 @@ const Audio2 = {
   },
 
   /* Yaratık yakın */
-  growl() {
-    this.tone({ freq: 74, dur: 1.6, gain: 0.3, type: 'sawtooth', slideTo: 42 });
-    this.burst({ dur: 1.5, freq: 260, q: 2, gain: 0.2 });
+  growl(vol = 1) {
+    this.tone({ freq: 74, dur: 1.6, gain: 0.3 * vol, type: 'sawtooth', slideTo: 42 });
+    this.burst({ dur: 1.5, freq: 260, q: 2, gain: 0.2 * vol });
   },
 
   /* JUMP SCARE — kısa, şiddetli, çok katmanlı */
@@ -53804,10 +53804,16 @@ function buildMonster() {
     monster.eyes.push(eye);
   }
   // göz ışığı
-  const eyeLight = new THREE.PointLight(0xff5522, 1.2, 6, 2);
+  const eyeLight = new THREE.PointLight(0xff3300, 3.5, 14, 2);
   eyeLight.position.set(0, 1.95, 0.2);
   g.add(eyeLight);
   monster.eyeLight = eyeLight;
+
+  // uzaktan görünsün diye ek zayıf ışık
+  const bodyGlow = new THREE.PointLight(0x330000, 1.0, 8, 2);
+  bodyGlow.position.set(0, 1.2, 0);
+  g.add(bodyGlow);
+  monster.bodyGlow = bodyGlow;
 
   // ağız dişleri
   for (let i = 0; i < 7; i++) {
@@ -54078,17 +54084,17 @@ function updateMonster(dt) {
   // hedef belirle
   if (m.state === 'chase' && m.lastSeen) {
     m.target.copy(m.lastSeen);
-    m.speed = 3.05 + m.aggro * 1.6;
+    m.speed = 3.4 + m.aggro * 1.8;
   } else if (m.state === 'hunt' && m.lastSeen) {
     m.target.copy(m.lastSeen);
-    m.speed = 2.2;
+    m.speed = 2.6;
     if (m.pos.distanceTo(m.lastSeen) < 1.6) {
       m.state = 'roam';
       m.lastSeen = null;
       m.roamT = 0;
     }
   } else {
-    m.speed = 1.5;
+    m.speed = 1.9;
     m.roamT = (m.roamT || 0) - dt;
     if (!m.roamPoint || m.roamT <= 0 || m.pos.distanceTo(m.roamPoint) < 1.5) {
       m.roamPoint = new THREE.Vector3(
@@ -54119,6 +54125,7 @@ function updateMonster(dt) {
 
   m.mesh.position.set(m.pos.x, 0, m.pos.z);
   m.mesh.visible = true;
+  m.mesh.scale.setScalar(1);
 
   animateMonster(dt, m.speed);
 
@@ -54127,11 +54134,14 @@ function updateMonster(dt) {
     killPlayer();
   }
 
-  // hırlama sesi
+  // hırlama sesi — her zaman duyulsun (mesafeye göre)
   m.roarT -= dt;
-  if (dist < 16 && m.roarT <= 0) {
-    m.roarT = 4 + Math.random() * 5;
-    if (dist < 10) Audio2.growl();
+  if (m.roarT <= 0) {
+    m.roarT = 3 + Math.random() * 3;
+    if (dist < 30) {
+      const vol = Math.max(0.12, 1 - dist / 32);
+      Audio2.growl(vol);
+    }
   }
 
   // göz parlaklığı
@@ -54271,12 +54281,32 @@ function fadeWallMessage() {
   m.userData.fadeOut = 6;
 }
 
-function wakeMonster() {
+function wakeMonster(silent = false) {
+  if (state.monsterAwake) return;
   state.monsterAwake = true;
   monster.mesh.visible = true;
   monster.state = 'hunt';
-  monster.pos.set(-18, 0, -18);
+
+  // oyuncuya 10-14 m mesafede, görüş hattı KAPALI bir noktaya koy
+  let placed = false;
+  for (let i = 0; i < 40; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 10 + Math.random() * 5;
+    const nx = player.pos.x + Math.cos(ang) * dist;
+    const nz = player.pos.z + Math.sin(ang) * dist;
+    if (nx < -19 || nx > 19 || nz < -19 || nz > 19) continue;
+    if (collides(nx, nz, 0.6)) continue;
+    if (hasLOS(nx, nz, player.pos.x, player.pos.z)) continue;  // gözükmeyen yer
+    monster.pos.set(nx, 0, nz);
+    placed = true;
+    break;
+  }
+  if (!placed) monster.pos.set(player.pos.x + 12, 0, player.pos.z + 12);
+
   monster.lastSeen = player.pos.clone();
+  monster.mesh.position.set(monster.pos.x, 0, monster.pos.z);
+
+  if (silent) return;
   Audio2.growl();
   setTimeout(() => Audio2.jumpScare(), 400);
   if (CFG.scares) fullscreenScare(1.4);
@@ -54564,7 +54594,19 @@ function updateHUD(dt) {
     cross.classList.remove('active');
   }
 
-  // korku arttıkça ekran kenarları kızarır
+  // yaratık yakınsa uyarı
+  if (state.monsterAwake) {
+    const d = monster.pos.distanceTo(player.pos);
+    if (d < 18) {
+      state.warnT = (state.warnT || 0) + dt;
+      if (state.warnT > 0.25) {
+        state.warnT = 0;
+        $('objective').innerHTML = `<b style="color:#e5484d">O BURADA</b><br><small>${Math.round(d)} metre</small>`;
+      }
+    }
+  }
+
+  // korku artışı ekran kenarları
   $('redFlash').style.background =
     `radial-gradient(circle, rgba(120,0,0,0) ${55 - player.fear * 20}%, rgba(${120 + player.fear * 80},0,0,${player.fear * 0.55}) 100%)`;
   $('redFlash').style.opacity = String(player.fear * 0.5);
@@ -54605,7 +54647,7 @@ function loop() {
     }
 
     // YARATIK ZAMANLAYICI: 55 sn sonra uyanır
-    if (!state.monsterForced) {
+    if (!state.monsterForced && state.monsterAwake === false) {
       state.monsterTimer -= dt;
       if (state.monsterTimer <= 0) {
         state.monsterForced = true;
@@ -54680,7 +54722,7 @@ function startGame() {
   player.stamina = 100;
 
   // YARATIK: 55 saniye sonra kesin gelir
-  state.monsterTimer = 55;
+  state.monsterTimer = 45;
   state.monsterForced = false;
 
   // yaratık sıfırla
