@@ -314,6 +314,11 @@
         <div class="diffName">Çılgın</div>
         <div class="diffDesc">Kaotik olaylar · dev botlar</div>
       </button>
+      <button class="diffCard" data-diff="parkour">
+        <div class="diffIcon">🧗</div>
+        <div class="diffName">Parkur Modu</div>
+        <div class="diffDesc">Platformlarda kaç · 13 trap</div>
+      </button>
     </div>
     <div class="row">
       <button class="btn primary" id="startBtn">Oyuna Başla</button>
@@ -346,7 +351,7 @@
       <div><kbd>E</kbd>Saklan / çık</div>
       <div><kbd>Q</kbd>Tuzak dükkanı (puanla)</div>
       <div><kbd>R</kbd>Tuzak kur</div>
-      <div><kbd>T</kbd>Tuzak değiştir</div>
+      <div><kbd>T</kbd>Tuzak değiştir (13 tip)</div>
       <div><kbd>F</kbd>Sprint patlaması</div>
       <div><kbd>G</kbd>Ebe radarı</div>
       <div><kbd>Esc</kbd> / <kbd>P</kbd> Duraklat</div>
@@ -53778,6 +53783,13 @@ const DIFFICULTY = {
     seekerView: 18, hearRange: 1.0, coinMult: 1.0,
     infiniteStamina: true,
   },
+  parkour: {
+    id: 'parkour', name: 'Parkur Modu', icon: '🧗', color: '#ffd166',
+    desc: 'Platformlarda koş · tırman · yakalanma',
+    time: Infinity, seekerCount: 3, seekerSpeed: 2.4, seekerChase: 5.2,
+    seekerView: 20, hearRange: 1.0, coinMult: 1.3,
+    infiniteStamina: true, parkourMode: true,
+  },
   crazy: {
     id: 'crazy', name: 'Çılgın', icon: '🤪', color: '#f472b6',
     desc: 'Kaotik · rastgele olaylar · zoom · dev botlar',
@@ -55893,7 +55905,7 @@ function spawnNPC(role, awayFrom, minD) {
     target: randomFreePoint(p, 6),
     speed: 2.6, seeT: 0, loseT: 0, lastSeen: null,
     searchT: 0, searchCenter: null, wanderT: rnd(0, 3),
-    caught: false, frozen: 0, slip: 0, y: 0, vy: 0, grounded: true, wantsJump: false, jumpCd: 0, climbTarget: null, climbT2: 0,
+    caught: false, frozen: 0, slip: 0, blindT: 0, y: 0, vy: 0, grounded: true, wantsJump: false, jumpCd: 0, climbTarget: null, climbT2: 0,
     // AI hafızası
     memory: [],           // son görülen noktalar
     suspicious: null,     // şüpheli nokta
@@ -55924,7 +55936,11 @@ function startRound(forceRole = null, mapId = null) {
   clearFreezeFx();
   if (!ONLINE.roomCode) clearRemotePlayers();
   if (mapId) save.settings.map = mapId;
-  const useMap = mapId || save.settings.map || 'open';
+  let useMap = mapId || save.settings.map || 'open';
+  // PARKUR MODU: harita ne seçilirse seçilsin sonsuz parkurda oynanır
+  if ((save.settings.difficulty || 'normal') === 'parkour' && !mapId) {
+    useMap = 'parkour';
+  }
   buildMap(useMap);
   clearNPCs();
   state.role = forceRole ?? (Math.random() < 0.70 ? 'hider' : 'seeker');
@@ -55998,7 +56014,7 @@ function startRound(forceRole = null, mapId = null) {
 
 const trapPoints = { n: 0 };          // tur içi puan
 let trapPointsTotal = 0;              // bu turda toplanan toplam
-const trapInv = { net: 0, banana: 0, decoy: 0 };
+const trapInv = { net: 0, banana: 0, decoy: 0, spring: 0, smoke: 0, alarm: 0, lightning: 0, oil: 0, mine: 0 };
 let netFreeze = 4, bananaSlip = 2, decoyLife = 5;
 let trapShopOpen = false;
 let paused = false;            // dükkan/menü açıkken oyun dursun
@@ -56017,12 +56033,36 @@ const TRAP_ITEMS = [
     id: 'decoy', icon: '🎭', name: 'Yem Bot', cost: 45, count: 1,
     desc: 'Ebeleri peşine takar.', dur: () => `${decoyLife} sn`,
   },
+  {
+    id: 'spring', icon: '🌀', name: 'Zıplama Yayı', cost: 35, count: 1,
+    desc: 'Üstüne basan 8 m havaya fırlar.', dur: () => '8 m',
+  },
+  {
+    id: 'smoke', icon: '💨', name: 'Sis Bombası', cost: 40, count: 1,
+    desc: 'Görüşü kesen yoğun sis bulutu.', dur: () => '6 sn',
+  },
+  {
+    id: 'alarm', icon: '🔔', name: 'Ses Tuzağı', cost: 25, count: 2,
+    desc: 'Çalınca tüm ebeler oraya koşar.', dur: () => 'dikkat dağıtır',
+  },
+  {
+    id: 'lightning', icon: '⚡', name: 'Şimşek Tuzağı', cost: 55, count: 1,
+    desc: 'Ebe basarsa 3 sn kör olur (geri iter).', dur: () => '3 sn',
+  },
+  {
+    id: 'oil', icon: '🛢️', name: 'Yağ Birikintisi', cost: 30, count: 1,
+    desc: 'Ebe kayar, 4 sn yönünü bulamaz.', dur: () => '4 sn',
+  },
+  {
+    id: 'mine', icon: '💥', name: 'Mayın', cost: 70, count: 1,
+    desc: 'Ebe basarsa geri savrulur ve donar.', dur: () => '5 sn',
+  },
 ];
 
 function prepTraps() {
   trapPoints.n = currentMap === 'parkour' ? 40 : (currentMap === 'maze' ? 20 : 0);    // parkurda başlangıç bonusu
   trapPointsTotal = 0;
-  trapInv.net = 0; trapInv.banana = 0; trapInv.decoy = 0;
+  for (const k of Object.keys(trapInv)) trapInv[k] = 0;
   netFreeze = 4; bananaSlip = 2; decoyLife = 5;
   trapShopOpen = false;
   $('trapShop')?.classList.add('hidden');
@@ -56040,7 +56080,7 @@ function updateTrapHud() {
   if (el) el.textContent = Math.floor(trapPoints.n);
   const inv = $('trapInv');
   if (inv) {
-    inv.textContent = `🕸️${trapInv.net}  🍌${trapInv.banana}  🎭${trapInv.decoy}`;
+    inv.textContent = TRAP_ITEMS.filter(t => trapInv[t.id] > 0).map(t => `${t.icon}${trapInv[t.id]}`).join(' ') || 'tuzak yok';
   }
   // dükkan açıksa fiyatları güncelle
   if (trapShopOpen) renderTrapShop();
@@ -56120,9 +56160,106 @@ function cycleTrap() {
   toast('Seçili tuzak: ' + TRAP_ITEMS.find((t) => t.id === selectedTrap).name, '', '#ffd166', 800);
 }
 
+/* Her tuzak tipi için görsel */
+function makeTrapMesh(type) {
+  let mesh;
+  switch (type) {
+    case 'net':
+      mesh = new THREE.Mesh(new THREE.CircleGeometry(0.9, 16),
+        new THREE.MeshStandardMaterial({ color: 0x9fe6c8, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+      mesh.rotation.x = -Math.PI / 2;
+      break;
+    case 'banana':
+      mesh = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.1, 6, 12, Math.PI),
+        new THREE.MeshStandardMaterial({ color: 0xffe066 }));
+      mesh.rotation.x = -Math.PI / 2;
+      break;
+    case 'decoy':
+      mesh = makeCharacter(0x8ecae6, false);
+      mesh.scale.setScalar(0.95);
+      break;
+    case 'spring': {
+      mesh = new THREE.Group();
+      const coil = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.06, 6, 16),
+        new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.3 }));
+      coil.rotation.x = -Math.PI / 2;
+      mesh.add(coil);
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 16),
+        new THREE.MeshStandardMaterial({ color: 0x3ddc97, emissive: 0x1a7a52, emissiveIntensity: 0.4 }));
+      pad.position.y = 0.06;
+      mesh.add(pad);
+      break;
+    }
+    case 'smoke': {
+      mesh = new THREE.Group();
+      for (let i = 0; i < 4; i++) {
+        const puff = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 6),
+          new THREE.MeshBasicMaterial({ color: 0xd8d8e0, transparent: true, opacity: 0.45 }));
+        puff.position.set((Math.random() - 0.5) * 0.6, 0.25 + Math.random() * 0.3, (Math.random() - 0.5) * 0.6);
+        mesh.add(puff);
+      }
+      break;
+    }
+    case 'alarm': {
+      mesh = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.18, 12),
+        new THREE.MeshStandardMaterial({ color: 0x3a3a42, metalness: 0.6, roughness: 0.4 }));
+      base.position.y = 0.09;
+      mesh.add(base);
+      const bell = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.MeshStandardMaterial({ color: 0xffc94d, metalness: 0.7, roughness: 0.3, emissive: 0x664400, emissiveIntensity: 0.5 }));
+      bell.position.y = 0.18;
+      mesh.add(bell);
+      break;
+    }
+    case 'lightning': {
+      mesh = new THREE.Group();
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 14),
+        new THREE.MeshStandardMaterial({ color: 0x2a2a3a, metalness: 0.5, roughness: 0.5 }));
+      pad.position.y = 0.03;
+      mesh.add(pad);
+      const bolt = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.7, 4),
+        new THREE.MeshStandardMaterial({ color: 0xfff066, emissive: 0xffdd00, emissiveIntensity: 1.4 }));
+      bolt.position.y = 0.4;
+      bolt.rotation.y = Math.PI / 4;
+      mesh.add(bolt);
+      break;
+    }
+    case 'oil': {
+      mesh = new THREE.Mesh(new THREE.CircleGeometry(1.1, 20),
+        new THREE.MeshStandardMaterial({ color: 0x0a0a0e, roughness: 0.15, metalness: 0.4, transparent: true, opacity: 0.85 }));
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.scale.set(1, 0.8, 1);
+      break;
+    }
+    case 'mine': {
+      mesh = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.12, 14),
+        new THREE.MeshStandardMaterial({ color: 0x2a3a2a, metalness: 0.5, roughness: 0.6 }));
+      body.position.y = 0.06;
+      mesh.add(body);
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff0000, emissiveIntensity: 2.2 }));
+      dot.position.y = 0.14;
+      mesh.add(dot);
+      break;
+    }
+    default:
+      mesh = new THREE.Mesh(new THREE.CircleGeometry(0.7, 12),
+        new THREE.MeshStandardMaterial({ color: 0x888888 }));
+      mesh.rotation.x = -Math.PI / 2;
+  }
+  return mesh;
+}
+
+const TRAP_NAMES = {
+  net: 'Ağ kuruldu', banana: 'Muz bırakıldı', decoy: 'Yem bot bırakıldı',
+  spring: 'Zıplama yayı kuruldu', smoke: 'Sis bombası kuruldu', alarm: 'Ses tuzağı kuruldu',
+  lightning: 'Şimşek tuzağı kuruldu', oil: 'Yağ döküldü', mine: 'Mayın gömüldü',
+};
+
 function placeTrap() {
   if (state.phase !== 'playing' || state.role !== 'hider' || trapShopOpen) return;
-  // seçili tuzak bittiyse elindeki başka tuzağa geç
   if (trapInv[selectedTrap] <= 0) {
     const avail = TRAP_ITEMS.find((t) => trapInv[t.id] > 0);
     if (!avail) { toast('Tuzak kalmadı', 'Q ile dükkanı aç ve puanla al', '#ff9c9c', 900); return; }
@@ -56136,24 +56273,16 @@ function placeTrap() {
   if (collides(px, pz, 0.5)) { toast('Buraya kurulamaz', '', '#ff9c9c', 700); return; }
 
   trapInv[type]--;
-  let mesh;
-  if (type === 'net') {
-    mesh = new THREE.Mesh(new THREE.CircleGeometry(0.9, 16),
-      new THREE.MeshStandardMaterial({ color: 0x9fe6c8, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
-    mesh.rotation.x = -Math.PI / 2;
-  } else if (type === 'banana') {
-    mesh = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.1, 6, 12, Math.PI),
-      new THREE.MeshStandardMaterial({ color: 0xffe066 }));
-    mesh.rotation.x = -Math.PI / 2;
-  } else {
-    mesh = makeCharacter(0x8ecae6, false);
-    mesh.scale.setScalar(0.95);
-  }
-  mesh.position.set(px, type === 'decoy' ? 0 : 0.05, pz);
+  const mesh = makeTrapMesh(type);
+  const needY = ['spring', 'alarm', 'lightning', 'mine'].includes(type) ? 0 : 0.05;
+  mesh.position.set(px, needY, pz);
   scene.add(mesh);
-  traps.push({ type, pos: V(px, pz), mesh, life: type === 'decoy' ? decoyLife : 999, t: 0 });
+  traps.push({
+    type, pos: V(px, pz), mesh, t: 0,
+    life: type === 'decoy' ? decoyLife : (type === 'smoke' ? 999 : 999),
+  });
   updateTrapHud();
-  toast(type === 'net' ? 'Ağ kuruldu' : type === 'banana' ? 'Muz bırakıldı' : 'Yem bot bırakıldı', '', '#7df0b4', 700);
+  toast(TRAP_NAMES[type] || 'Tuzak kuruldu', '', '#7df0b4', 700);
 }
 
 /* Zıplama halkaları: havadayken topla */
@@ -56195,33 +56324,117 @@ function updateTraps(dt) {
   for (let i = traps.length - 1; i >= 0; i--) {
     const t = traps[i];
     t.t += dt;
+
+    // --- animasyonlar ---
     if (t.type === 'decoy') {
       t.life -= dt;
-      // yem botu yürüt (dikkat çeksin)
       t.mesh.position.y = Math.abs(Math.sin(t.t * 6)) * 0.06;
       t.mesh.rotation.y += dt * 1.5;
       if (t.life <= 0) { scene.remove(t.mesh); traps.splice(i, 1); continue; }
     } else if (t.type === 'net') {
       t.mesh.material.opacity = 0.35 + Math.sin(t.t * 4) * 0.2;
+    } else if (t.type === 'spring') {
+      t.mesh.rotation.y += dt * 2.2;
+      t.mesh.position.y = 0.05 + Math.abs(Math.sin(t.t * 5)) * 0.12;
+    } else if (t.type === 'smoke') {
+      // sis yavaşça büyür ve döner
+      const s = 1 + Math.sin(t.t * 2) * 0.12;
+      t.mesh.scale.setScalar(s);
+      t.mesh.rotation.y += dt * 0.6;
+      for (const c of t.mesh.children) c.position.y = 0.3 + Math.sin(t.t * 1.5 + c.position.x) * 0.15;
+    } else if (t.type === 'alarm') {
+      t.mesh.rotation.y = Math.sin(t.t * 3) * 0.12;
+    } else if (t.type === 'lightning') {
+      t.mesh.children[1].rotation.y += dt * 2;
+      t.mesh.children[1].position.y = 0.4 + Math.sin(t.t * 4) * 0.06;
+    } else if (t.type === 'oil') {
+      t.mesh.material.opacity = 0.75 + Math.sin(t.t * 2) * 0.1;
+    } else if (t.type === 'mine') {
+      const dot = t.mesh.children[1];
+      if (dot) dot.material.emissiveIntensity = 1.5 + Math.sin(t.t * 6) * 1.2;
     }
-    // tetikleme
+
+    // --- tetikleme ---
     for (const n of npcs) {
-      if (n.role !== 'seeker' || n.caught || n.frozen > 0) continue;
-      if (n.pos.distanceTo(t.pos) < 1.3) {
-        if (t.type === 'net') { n.frozen = netFreeze; n.state = 'search'; n.searchT = 0.1; }
-        else if (t.type === 'banana') { n.slip = bananaSlip; n.frozen = bananaSlip; }
-        else if (t.type === 'decoy') { n.decoyTarget = t.pos.clone(); n.state = 'investigate'; n.target = t.pos.clone(); }
-        if (t.type !== 'decoy') {
-          scene.remove(t.mesh);
-          traps.splice(i, 1);
-          toast(t.type === 'net' ? 'TUZAK! Ebe takıldı' : 'Ebe kaydı!', '', '#7df0b4', 900);
-        }
-        break;
+      if (n.role !== 'seeker' || n.caught) continue;
+      if (t.triggered) break;
+      const d = n.pos.distanceTo(t.pos);
+      const range = (t.type === 'oil' || t.type === 'smoke') ? 1.9 : 1.3;
+      if (d > range) continue;
+
+      switch (t.type) {
+        case 'net':
+          n.frozen = netFreeze; n.state = 'search'; n.searchT = 0.1;
+          toast('TUZAK! Ebe ağa takıldı', `${netFreeze} sn`, '#7df0b4', 900);
+          t.triggered = true; break;
+        case 'banana':
+          n.slip = bananaSlip; n.frozen = bananaSlip;
+          toast('Ebe kaydı!', '', '#7df0b4', 800);
+          t.triggered = true; break;
+        case 'decoy':
+          n.decoyTarget = t.pos.clone(); n.state = 'investigate'; n.target = t.pos.clone();
+          break;
+        case 'spring':
+          n.vy = 16; n.grounded = false; n.y = 0.1;
+          n.frozen = 1.4; n.state = 'search'; n.searchT = 0.1;
+          toast('YAY! Ebe havalandı', '8 m yukarı', '#7df0b4', 900);
+          t.triggered = true; break;
+        case 'smoke':
+          // 6 saniye görüşü kes
+          n.blindT = 6;
+          if (!t.smokeApplied) { toast('Sis bulutu!', 'Görüş kesildi', '#7df0b4', 900); t.smokeApplied = true; }
+          break;
+        case 'alarm':
+          // tüm ebeler buraya koşar
+          for (const o of npcs) {
+            if (o.role === 'seeker' && !o.caught) {
+              o.state = 'investigate';
+              o.target = t.pos.clone();
+              o.searchT = 6;
+            }
+          }
+          toast('SES TUZAĞI!', 'Ebeler buraya geliyor', '#ffd166', 1200);
+          t.triggered = true; break;
+        case 'lightning':
+          n.frozen = 3;
+          n.blindT = 3;
+          n.state = 'search'; n.searchT = 0.1;
+          // geri savrulma
+          const away = V(n.pos.x - t.pos.x, n.pos.z - t.pos.z).normalize().multiplyScalar(3);
+          n.pos.x += away.x; n.pos.z += away.z;
+          toast('ŞİMŞEK! Ebe kör oldu', '3 sn', '#fff066', 1100);
+          t.triggered = true; break;
+        case 'oil':
+          n.frozen = 4; n.slip = 4;
+          toast('Ebe kaydı!', '4 sn yönünü bulamıyor', '#7df0b4', 900);
+          t.triggered = true; break;
+        case 'mine':
+          n.frozen = 5;
+          const blast = V(n.pos.x - t.pos.x, n.pos.z - t.pos.z).normalize().multiplyScalar(5);
+          n.pos.x += blast.x; n.pos.z += blast.z;
+          n.state = 'search'; n.searchT = 0.1;
+          toast('MAYIN PATLADI!', 'Ebe savruldu', '#ff6b6b', 1200);
+          t.triggered = true; break;
       }
+      if (t.triggered) break;
+    }
+
+    // tetiklenen tuzakları kaldır (sis hariç — o kalır)
+    if (t.triggered && t.type !== 'smoke' && t.type !== 'decoy') {
+      scene.remove(t.mesh);
+      traps.splice(i, 1);
+    }
+  }
+
+  // sis süreleri
+  for (let i = traps.length - 1; i >= 0; i--) {
+    const t = traps[i];
+    if (t.type === 'smoke') {
+      t.life = (t.life || 20) - dt;
+      if (t.life <= 0) { scene.remove(t.mesh); traps.splice(i, 1); }
     }
   }
 }
-
 
 /* ==================== DONDURMA SİLAHI ==================== */
 /* Silah 600 altın. Mermi olmadan kullanılamaz.
@@ -56752,7 +56965,7 @@ function updatePlayer(dt) {
 
 function updateSeekerNPC(n, dt) {
   // donmuş / kaymış
-  if (n.frozen > 0) {
+  if ((n.frozen || 0) > 0) {
     n.frozen -= dt;
     n.mesh.position.set(n.pos.x, n.slip > 0 ? 0.25 : 0, n.pos.z);
     if (n.slip > 0) { n.slip -= dt; n.mesh.rotation.z = Math.PI / 2; }
@@ -56776,10 +56989,15 @@ function updateSeekerNPC(n, dt) {
   }
   if (player.sprintT > 0) range *= 1.1;
 
-  // sis içinde görüş yok
+  // sis içinde görüş yok (tuzak sisi + körlük)
   let inSmoke = false;
+  if ((n.blindT || 0) > 0) { n.blindT -= dt; inSmoke = true; }
   for (const s of smokeZones) {
     if (Math.hypot(n.pos.x - s.pos.x, n.pos.z - s.pos.z) < s.r) { inSmoke = true; break; }
+  }
+  // tuZak sisi: yakındaki sis tuzaklarını da kontrol et
+  for (const t2 of traps) {
+    if (t2.type === 'smoke' && Math.hypot(n.pos.x - t2.pos.x, n.pos.z - t2.pos.z) < 3.0) { inSmoke = true; break; }
   }
 
   const inCone = cosAngle > (dist < 6 ? 0.1 : 0.3);   // yakında daha geniş görüş
