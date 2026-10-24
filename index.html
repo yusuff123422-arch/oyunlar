@@ -116,6 +116,8 @@
     <div class="chip" id="roleChip"><span id="roleTxt">SAKLANAN</span></div>
     <div class="chip" id="timer">⏱ <b id="timeVal">0:00</b></div>
     <div class="chip" id="coinChip">🪙 <b id="coinVal">0</b></div>
+    <div class="chip" id="pointChip">⭐ <b id="trapPoints">0</b></div>
+    <div class="chip" id="trapChip"><span id="trapInv">🕸️0 🍌0 🎭0</span></div>
   </div>
   <canvas id="minimap" width="336" height="336"></canvas>
   <div id="crosshair"></div>
@@ -126,6 +128,21 @@
     <div id="staminaWrap"><div id="stamina"></div></div>
   </div>
   <div id="toast"></div>
+
+  <!-- TUZAK DÜKKANI (tur içi) -->
+  <div id="trapShop" class="hidden" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+       width:min(620px,92vw);background:rgba(16,22,33,.96);border:1px solid rgba(120,170,255,.25);
+       border-radius:18px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.7);pointer-events:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <h2 style="margin:0;font-size:20px">🪤 Tuzak Dükkanı</h2>
+      <div style="font-size:16px;font-weight:800;color:#ffd166">⭐ <span id="trapShopPoints">0</span> puan</div>
+    </div>
+    <p class="sub" style="font-size:12.5px;margin-bottom:10px">
+      Puanlar tur içinde kazanılır: ebeden kaçmak, temiz saklanmak ve hayatta kalmak puan verir.
+      <b>Q</b> kapat · <b>R</b> tuzak kur · <b>T</b> tuzak değiştir
+    </p>
+    <div class="shopGrid" id="trapGrid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))"></div>
+  </div>
 </div>
 
 <!-- ANA MENÜ -->
@@ -156,9 +173,11 @@
       <div><kbd>Fare</kbd>Bak</div>
       <div><kbd>Shift</kbd>Koş (ses çıkarır)</div>
       <div><kbd>E</kbd>Saklan / çık</div>
-      <div><kbd>Q</kbd>Tuzak kur</div>
-      <div><kbd>F</kbd>Yetenek (sprint/radar)</div>
-      <div><kbd>G</kbd>Sis bombası / dondur</div>
+      <div><kbd>Q</kbd>Tuzak dükkanı (puanla)</div>
+      <div><kbd>R</kbd>Tuzak kur</div>
+      <div><kbd>T</kbd>Tuzak değiştir</div>
+      <div><kbd>F</kbd>Sprint patlaması</div>
+      <div><kbd>G</kbd>Ebe radarı</div>
       <div><kbd>Esc</kbd>Duraklat</div>
       <div><kbd>Sol tık</kbd>Yakala (ebe)</div>
       <div><kbd>M</kbd>Mini harita büyüt</div>
@@ -185,7 +204,8 @@
 <div class="overlay hidden" id="loadout">
   <div class="panel">
     <h1 style="font-size:26px;margin-bottom:6px">🎒 Ekipman</h1>
-    <p class="sub">Sahip oldukların arasından birer eşya seç. Sadece seçili olanlar oyunda aktif.</p>
+    <p class="sub">Sahip oldukların arasından birer eşya seç. Sadece seçili olanlar oyunda aktif.
+      <b>Tuzaklar artık burada değil</b> — tur içinde puanla alınır (oyunda <b>Q</b>).</p>
     <div id="loadoutList"></div>
     <div class="row" style="margin-top:18px">
       <button class="btn primary" id="loadoutBack">Geri</button>
@@ -53353,7 +53373,7 @@ cfg.sensIdx = save.settings.sensIdx;
 cfg.invertY = save.settings.invertY;
 
 /* ==================== MAĞAZA VERİSİ ==================== */
-/* slot: 'passive' | 'trap' | 'ability' */
+/* slot: 'passive' | 'ability'  (tuzaklar artık tur içinde puanla alınır) */
 const SHOP = [
   {
     id: 'sneakers', slot: 'passive', icon: '👟', name: 'Sessiz Ayakkabı', max: 3,
@@ -53386,24 +53406,6 @@ const SHOP = [
     cost: (l) => 450 + l * 300,
   },
   {
-    id: 'trap_net', slot: 'trap', icon: '🕸️', name: 'Ağ Tuzağı', max: 3,
-    desc: 'Yere tuzak kur. Ebe basarsa 4 sn donar.',
-    effect: (l) => `${1 + l} adet · ${3 + l} sn`,
-    cost: (l) => 200 + l * 150,
-  },
-  {
-    id: 'trap_decoy', slot: 'trap', icon: '🎭', name: 'Yem Bot', max: 3,
-    desc: 'Sahte bir bot bırakır; ebeler onu kovalar.',
-    effect: (l) => `${1 + l} adet · ${4 + l} sn`,
-    cost: (l) => 350 + l * 200,
-  },
-  {
-    id: 'trap_banana', slot: 'trap', icon: '🍌', name: 'Muz Kabuğu', max: 3,
-    desc: 'Ebe basınca düşer ve 2 sn kalkamaz.',
-    effect: (l) => `${2 + l * 2} adet`,
-    cost: (l) => 150 + l * 120,
-  },
-  {
     id: 'ab_sprint', slot: 'ability', icon: '💨', name: 'Sprint Patlaması', max: 3,
     desc: 'F ile kısa süreli çok hızlı koşu.',
     effect: (l) => `${2 + l * 0.4} sn · ${18 - l * 3} sn bekleme`,
@@ -53420,12 +53422,6 @@ const SHOP = [
     desc: 'G ile sis at; içindeki ebeler seni göremez.',
     effect: (l) => `${5 + l} sn · ${22 - l * 3} sn bekleme`,
     cost: (l) => 450 + l * 250,
-  },
-  {
-    id: 'ab_freeze', slot: 'ability', icon: '❄️', name: 'Dondurucu', max: 3,
-    desc: 'G ile yakındaki ebeleri dondur.',
-    effect: (l) => `${2 + l} sn · ${24 - l * 3} sn bekleme`,
-    cost: (l) => 550 + l * 300,
   },
 ];
 
@@ -53767,7 +53763,9 @@ addEventListener('keydown', (e) => {
   if (keys[e.code]) return;
   keys[e.code] = true;
   if (e.code === 'KeyE') tryInteract();
-  if (e.code === 'KeyQ') placeTrap();
+  if (e.code === 'KeyQ') openTrapShop();
+  if (e.code === 'KeyR') placeTrap();
+  if (e.code === 'KeyT') cycleTrap();
   if (e.code === 'KeyF') useAbility(0);
   if (e.code === 'KeyG') useAbility(1);
   if (e.code === 'KeyM') { save.settings.bigMap = !save.settings.bigMap; persist(); applyMapSize(); }
@@ -53964,7 +53962,7 @@ function startRound(forceRole = null) {
 
   if (state.role === 'hider') {
     for (let i = 0; i < 3; i++) spawnNPC('seeker', player.pos, 20);
-    // tuzakları hazırla
+    // tuzak dükkanı sıfırla
     prepTraps();
   } else {
     for (let i = 0; i < 3; i++) spawnNPC('hider', player.pos, 14);
@@ -53994,38 +53992,134 @@ function startRound(forceRole = null) {
   renderer.domElement.requestPointerLock?.();
 }
 
-/* ==================== TUZAKLAR ==================== */
+/* ==================== TUZAK DÜKKANI (tur içi, puanla) ==================== */
+/* Tuzaklar artık ana mağazadan alınmaz — tur içinde kazandığın puanla alınır. */
+
+const trapPoints = { n: 0 };          // tur içi puan
+let trapPointsTotal = 0;              // bu turda toplanan toplam
 const trapInv = { net: 0, banana: 0, decoy: 0 };
 let netFreeze = 4, bananaSlip = 2, decoyLife = 5;
+let trapShopOpen = false;
+let selectedTrap = 'net';
+
+const TRAP_ITEMS = [
+  {
+    id: 'net', icon: '🕸️', name: 'Ağ Tuzağı', cost: 30, count: 1,
+    desc: 'Ebe basarsa 4 sn donar.', dur: () => `${netFreeze} sn`,
+  },
+  {
+    id: 'banana', icon: '🍌', name: 'Muz Kabuğu', cost: 20, count: 2,
+    desc: 'Ebe düşer, 2 sn kalkamaz.', dur: () => '2 sn',
+  },
+  {
+    id: 'decoy', icon: '🎭', name: 'Yem Bot', cost: 45, count: 1,
+    desc: 'Ebeleri peşine takar.', dur: () => `${decoyLife} sn`,
+  },
+];
 
 function prepTraps() {
-  const netLvl = passiveLevel('trap_net');
-  const banLvl = passiveLevel('trap_banana');
-  const decLvl = passiveLevel('trap_decoy');
-  trapInv.net = netLvl ? 1 + netLvl : 0;
-  trapInv.banana = banLvl ? 2 + banLvl * 2 : 0;
-  trapInv.decoy = decLvl ? 1 + decLvl : 0;
-  netFreeze = 3 + netLvl;
-  bananaSlip = 2;
-  decoyLife = 4 + decLvl;
+  trapPoints.n = 0;
+  trapPointsTotal = 0;
+  trapInv.net = 0; trapInv.banana = 0; trapInv.decoy = 0;
+  netFreeze = 4; bananaSlip = 2; decoyLife = 5;
+  trapShopOpen = false;
+  $('trapShop')?.classList.add('hidden');
+  updateTrapHud();
 }
 
-function trapTypeCount() { return trapInv.net + trapInv.banana + trapInv.decoy; }
+function addTrapPoints(n) {
+  trapPoints.n += n;
+  trapPointsTotal += n;
+  updateTrapHud();
+}
+
+function updateTrapHud() {
+  const el = $('trapPoints');
+  if (el) el.textContent = trapPoints.n;
+  const inv = $('trapInv');
+  if (inv) {
+    inv.textContent = `🕸️${trapInv.net}  🍌${trapInv.banana}  🎭${trapInv.decoy}`;
+  }
+  // dükkan açıksa fiyatları güncelle
+  if (trapShopOpen) renderTrapShop();
+}
+
+function openTrapShop() {
+  if (state.phase !== 'playing' || state.role !== 'hider') return;
+  if (trapShopOpen) { closeTrapShop(); return; }
+  trapShopOpen = true;
+  document.exitPointerLock?.();
+  renderTrapShop();
+  $('trapShop').classList.remove('hidden');
+}
+
+function closeTrapShop() {
+  trapShopOpen = false;
+  $('trapShop').classList.add('hidden');
+  if (state.phase === 'playing') renderer.domElement.requestPointerLock?.();
+}
+
+function renderTrapShop() {
+  const grid = $('trapGrid');
+  if (!grid) return;
+  $('trapShopPoints').textContent = trapPoints.n;
+  grid.innerHTML = '';
+  for (const item of TRAP_ITEMS) {
+    const canBuy = trapPoints.n >= item.cost;
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.innerHTML = `
+      <div class="top"><span class="ico">${item.icon}</span><span class="nm">${item.name}</span>
+        <span class="badge">${item.dur()}</span></div>
+      <div class="ds">${item.desc}</div>
+      <div class="lvl">Elinde: ${trapInv[item.id]}</div>
+      <div class="foot">
+        <span class="pr">${item.cost} puan${item.count > 1 ? ` · ${item.count} adet` : ''}</span>
+        <button class="btn small buy" data-trap="${item.id}" ${canBuy ? '' : 'disabled'}>Al</button>
+      </div>`;
+    grid.appendChild(el);
+  }
+  grid.querySelectorAll('[data-trap]').forEach((b) => {
+    b.onclick = () => buyTrap(b.dataset.trap);
+  });
+}
+
+function buyTrap(id) {
+  const item = TRAP_ITEMS.find((t) => t.id === id);
+  if (!item || trapPoints.n < item.cost) return;
+  trapPoints.n -= item.cost;
+  trapInv[id] += item.count;
+  updateTrapHud();
+  renderTrapShop();
+  toast(`${item.name} alındı`, `+${item.count} adet`, '#7df0b4', 700);
+}
+
+/* --- tuzak yerleştirme: seçili tuzak --- */
+function cycleTrap() {
+  const avail = TRAP_ITEMS.filter((t) => trapInv[t.id] > 0);
+  if (!avail.length) { toast('Tuzak yok', 'Q ile tuzak dükkanını aç', '#ff9c9c', 900); return; }
+  const idx = avail.findIndex((t) => t.id === selectedTrap);
+  selectedTrap = avail[(idx + 1) % avail.length].id;
+  updateTrapHud();
+  toast('Seçili tuzak: ' + TRAP_ITEMS.find((t) => t.id === selectedTrap).name, '', '#ffd166', 800);
+}
 
 function placeTrap() {
-  if (state.phase !== 'playing' || state.role !== 'hider') return;
-  let type = null;
-  if (trapInv.net > 0) type = 'net';
-  else if (trapInv.banana > 0) type = 'banana';
-  else if (trapInv.decoy > 0) type = 'decoy';
-  if (!type) { toast('Tuzak kalmadı', 'Mağazadan tuzak al', '#ff9c9c', 900); return; }
+  if (state.phase !== 'playing' || state.role !== 'hider' || trapShopOpen) return;
+  // seçili tuzak bittiyse elindeki başka tuzağa geç
+  if (trapInv[selectedTrap] <= 0) {
+    const avail = TRAP_ITEMS.find((t) => trapInv[t.id] > 0);
+    if (!avail) { toast('Tuzak kalmadı', 'Q ile dükkanı aç ve puanla al', '#ff9c9c', 900); return; }
+    selectedTrap = avail.id;
+  }
+  const type = selectedTrap;
 
-  trapInv[type]--;
   const fwd = V(-Math.sin(player.yaw), -Math.cos(player.yaw)).multiplyScalar(1.6);
   const px = player.pos.x + fwd.x;
   const pz = player.pos.z + fwd.z;
-  if (collides(px, pz, 0.5)) return;
+  if (collides(px, pz, 0.5)) { toast('Buraya kurulamaz', '', '#ff9c9c', 700); return; }
 
+  trapInv[type]--;
   let mesh;
   if (type === 'net') {
     mesh = new THREE.Mesh(new THREE.CircleGeometry(0.9, 16),
@@ -54042,7 +54136,7 @@ function placeTrap() {
   mesh.position.set(px, type === 'decoy' ? 0 : 0.05, pz);
   scene.add(mesh);
   traps.push({ type, pos: V(px, pz), mesh, life: type === 'decoy' ? decoyLife : 999, t: 0 });
-  renderAbilities();
+  updateTrapHud();
   toast(type === 'net' ? 'Ağ kuruldu' : type === 'banana' ? 'Muz bırakıldı' : 'Yem bot bırakıldı', '', '#7df0b4', 700);
 }
 
@@ -54083,7 +54177,6 @@ function abilityInfo() {
   const sprint = ownedLevel('ab_sprint');
   const radar = ownedLevel('ab_radar');
   const smoke = ownedLevel('ab_smoke');
-  const freeze = ownedLevel('ab_freeze');
 
   if (state.role === 'hider') {
     if (sprint) list.push({ id: 'ab_sprint', key: 'F', icon: '💨', cd: 18 - sprint * 3, dur: 2 + sprint * 0.4 });
@@ -54122,7 +54215,12 @@ function useAbility(slot) {
 function renderAbilities() {
   const box = $('abilities');
   box.innerHTML = '';
-  if (state.role !== 'hider' && state.phase !== 'playing') return;
+  if (state.phase !== 'playing') return;
+  if (state.role !== 'hider') {
+    box.innerHTML = `<div class="ability"><div class="ico">⚡</div><div class="key">F</div>
+      <div class="cd" style="display:none"></div></div>`;
+    return;
+  }
   const list = abilityInfo();
   list.forEach((info, idx) => {
     const el = document.createElement('div');
@@ -54136,11 +54234,28 @@ function renderAbilities() {
     }
     box.appendChild(el);
   });
+  // 3. kutu: tuzak dükkanı
+  const shop = document.createElement('div');
+  shop.className = 'ability ready';
+  shop.innerHTML = `<div class="ico">🛒</div><div class="key">Q</div>`;
+  box.appendChild(shop);
+  // 4. kutu: tuzak yerleştir + seçili tuzak
+  const place = document.createElement('div');
+  place.className = 'ability' + (trapInv[selectedTrap] > 0 ? ' ready' : ' empty');
+  const item = TRAP_ITEMS.find((t) => t.id === selectedTrap);
+  place.innerHTML = `<div class="ico">${item ? item.icon : '🪤'}</div><div class="key">R</div>`;
+  box.appendChild(place);
+  // 5. kutu: tuzak değiştir
+  const sw = document.createElement('div');
+  sw.className = 'ability';
+  sw.innerHTML = `<div class="ico">🔄</div><div class="key">T</div>`;
+  box.appendChild(sw);
 }
 
 function updateAbilityHud() {
   const box = $('abilities');
   [...box.children].forEach((el, idx) => {
+    if (idx > 1) return;
     const cd = el.querySelector('.cd');
     if (!cd) return;
     cd.style.display = abilityCd[idx] > 0 ? 'flex' : 'none';
@@ -54607,6 +54722,9 @@ function updateHUD(dt) {
   $('timer').classList.toggle('warn', state.time < 15);
   $('timeVal').textContent = fmtTime(state.time);
   $('coinVal').textContent = save.coins;
+  $('trapPoints').textContent = trapPoints.n;
+  const invTxt = `🕸️${trapInv.net} 🍌${trapInv.banana} 🎭${trapInv.decoy}`;
+  if ($('trapInv').textContent !== invTxt) $('trapInv').textContent = invTxt;
   $('stamina').style.width = (player.stamina / player.staminaMax * 100) + '%';
   $('staminaWrap').classList.toggle('tired', player.exhausted);
 
@@ -54631,6 +54749,16 @@ function updateHUD(dt) {
     if (chasing) target = 1;
     else if (nearest < 14) target = Math.max(0, 1 - nearest / 14) * 0.45;
   }
+  // === tur içi tuzak puanı kazanma ===
+  if (state.role === 'hider') {
+    // yakın tehditten kaçınma puanı
+    if (chasing && nearest < 12) addTrapPoints(dt * 6);
+    // temiz saklanma puanı
+    if (player.hidden && nearest > 12) addTrapPoints(dt * 2.2);
+    // uzun süre hayatta kalma
+    addTrapPoints(dt * 0.5);
+  }
+
   state.danger += (target - state.danger) * Math.min(1, dt * 6);
   $('danger').style.opacity = state.danger.toFixed(3);
 
@@ -54663,6 +54791,9 @@ function endRound(win, reason = '') {
     gained = 30;
     xpGain = 20;
   }
+  // tur içi tuzak puanı kullanılmayanların bir kısmı paraya döner
+  const leftover = Math.floor(trapPoints.n * 0.5);
+  if (leftover > 0) gained += leftover;
   save.coins += gained;
   save.bestScore = Math.max(save.bestScore, save.coins);
   persist();
@@ -54675,6 +54806,7 @@ function endRound(win, reason = '') {
   $('endStats').innerHTML = `
     <div class="stat"><span>Rol</span><b>${state.role === 'hider' ? 'Saklanan' : 'Ebe'}</b></div>
     <div class="stat"><span>Kazanılan para</span><b style="color:#ffd166">+${gained} 🪙</b></div>
+    <div class="stat"><span>Tur içi tuzak puanı</span><b>${trapPointsTotal} puan${leftover > 0 ? ' · +' + leftover + ' 🪙' : ''}</b></div>
     <div class="stat"><span>Deneyim</span><b style="color:#7df0b4">+${xpGain} XP</b></div>
     <div class="stat"><span>Toplam para</span><b>${save.coins} 🪙</b></div>
     <div class="stat"><span>Seviye</span><b>${save.level}</b></div>
@@ -54724,7 +54856,6 @@ function renderShop() {
   grid.innerHTML = '';
   const groups = [
     { slot: 'passive', title: 'Pasif Eşyalar' },
-    { slot: 'trap', title: 'Tuzaklar' },
     { slot: 'ability', title: 'Yetenekler' },
   ];
   for (const g of groups) {
@@ -54766,7 +54897,6 @@ function renderLoadout() {
   list.innerHTML = '';
   const slots = [
     { slot: 'passive', title: 'Pasif Eşya (1 slot)' },
-    { slot: 'trap', title: 'Tuzak (1 slot)' },
     { slot: 'ability', title: 'Yetenek (2 slot)' },
   ];
   for (const s of slots) {
@@ -54856,51 +54986,69 @@ function loop() {
 loop();
 
 /* ==================== UI BAĞLA ==================== */
-$('startBtn').onclick = () => startRound();
-$('nextBtn').onclick = () => startRound();
-$('menuBtn').onclick = () => toMenu();
-$('resumeBtn').onclick = () => resumeGame();
-$('quitBtn').onclick = () => toMenu();
-$('shopBtn').onclick = () => { renderShop(); $('menu').classList.add('hidden'); $('shop').classList.remove('hidden'); };
-$('endShopBtn').onclick = () => { renderShop(); $('endScreen').classList.add('hidden'); $('shop').classList.remove('hidden'); };
-$('shopBack').onclick = () => {
+/* Her buton tek tek bağlanır; biri hata verirse diğerleri çalışmaya devam eder. */
+function on(id, fn) {
+  const el = $(id);
+  if (!el) { console.warn('[UI] eleman yok:', id); return; }
+  el.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    try { fn(ev); } catch (err) { console.error('[UI] ' + id + ' hatası:', err); }
+  });
+}
+
+on('startBtn', () => startRound());
+on('nextBtn', () => startRound());
+on('menuBtn', () => toMenu());
+on('resumeBtn', () => resumeGame());
+on('quitBtn', () => toMenu());
+on('shopBtn', () => { renderShop(); $('menu').classList.add('hidden'); $('shop').classList.remove('hidden'); });
+on('endShopBtn', () => { renderShop(); $('endScreen').classList.add('hidden'); $('shop').classList.remove('hidden'); });
+on('shopBack', () => {
   $('shop').classList.add('hidden');
   if (state.phase === 'menu') { $('menu').classList.remove('hidden'); renderMenuStats(); }
   else { $('endScreen').classList.remove('hidden'); }
-};
-$('loadoutBtn').onclick = () => { renderLoadout(); $('menu').classList.add('hidden'); $('loadout').classList.remove('hidden'); };
-$('loadoutBack').onclick = () => { $('loadout').classList.add('hidden'); $('menu').classList.remove('hidden'); };
+});
+on('loadoutBtn', () => { renderLoadout(); $('menu').classList.add('hidden'); $('loadout').classList.remove('hidden'); });
+on('loadoutBack', () => { $('loadout').classList.add('hidden'); $('menu').classList.remove('hidden'); });
 
-$('sensBtn').onclick = () => {
+on('sensBtn', () => {
   cfg.sensIdx = (cfg.sensIdx + 1) % SENS_LEVELS.length;
   save.settings.sensIdx = cfg.sensIdx;
   persist(); applySensLabel();
-};
-$('invertBtn').onclick = () => {
+});
+on('invertBtn', () => {
   cfg.invertY = !cfg.invertY;
   save.settings.invertY = cfg.invertY;
   persist(); applySensLabel();
-};
-$('resetBtn').onclick = () => {
+});
+on('resetBtn', () => {
   if (!confirm('Tüm kayıt silinsin mi? Para, seviye ve eşyalar sıfırlanacak.')) return;
   save = structuredClone(DEFAULT_SAVE);
-  persist(); renderMenuStats(); renderShop();
+  persist(); renderMenuStats(); renderShop(); renderLoadout();
   toast('Kayıt sıfırlandı', '', '#ff9c9c', 1200);
-};
+});
 
-$('pause').addEventListener('click', (e) => { if (e.target.id === 'pause') resumeGame(); });
+const pauseEl = $('pause');
+if (pauseEl) pauseEl.addEventListener('click', (e) => { if (e.target.id === 'pause') resumeGame(); });
+const trapShopEl = $('trapShop');
+if (trapShopEl) trapShopEl.addEventListener('click', (e) => { if (e.target.id === 'trapShop') closeTrapShop(); });
 
 /* ==================== BAŞLAT ==================== */
-applySensLabel();
-applyMapSize();
-renderMenuStats();
-renderShop();
+try { applySensLabel(); } catch (e) { console.error(e); }
+try { applyMapSize(); } catch (e) { console.error(e); }
+try { renderMenuStats(); } catch (e) { console.error(e); }
+try { renderShop(); } catch (e) { console.error(e); }
+try { renderAbilities(); } catch (e) { console.error(e); }
 
 // hata ayıklama / test
 window.__game = {
   state, player, npcs, traps, coverables, obstacles, SHOP,
-  startRound, placeTrap, useAbility, buyItem, endRound, get save() { return save; },
+  startRound, placeTrap, useAbility, buyItem, endRound, buyTrap, openTrapShop, cycleTrap,
+  get save() { return save; },
   get trapInv() { return trapInv; },
+  get trapPoints() { return trapPoints; },
+  TRAP_ITEMS,
 };
 
 </script>
