@@ -110,7 +110,7 @@
   /* tuzak dükkanı: HUD pointer-events:none olduğu için elle aç */
   #trapShop { pointer-events: auto; }
   #trapShop .shopGrid, #trapShop .item { pointer-events: auto; }
-  #trapShop button { pointer-events: auto; cursor: pointer; }
+  #trapShop button { pointer-events: auto; cursor: pointer; position: relative; z-index: 2; }
   #trapShop button:disabled { opacity: .5; cursor: not-allowed; }
 </style>
 </head>
@@ -137,7 +137,7 @@
   <!-- TUZAK DÜKKANI (tur içi) -->
   <div id="trapShop" class="hidden" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
        width:min(620px,92vw);background:rgba(16,22,33,.96);border:1px solid rgba(120,170,255,.25);
-       border-radius:18px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.7);pointer-events:auto;">
+       border-radius:18px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.7);pointer-events:auto;z-index:50;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
       <h2 style="margin:0;font-size:20px">🪤 Tuzak Dükkanı</h2>
       <div style="font-size:16px;font-weight:800;color:#ffd166">⭐ <span id="trapShopPoints">0</span> puan</div>
@@ -54316,38 +54316,44 @@ function closeTrapShop() {
 
 function renderTrapShop() {
   const grid = $('trapGrid');
-  if (!grid) return;
+  if (!grid) { console.warn('[trapShop] grid yok'); return; }
   $('trapShopPoints').textContent = Math.floor(trapPoints.n);
-  grid.innerHTML = '';
+
+  // HTML'i tek seferde üret (en sağlam yol)
+  let html = '';
   for (const item of TRAP_ITEMS) {
     const canBuy = Math.floor(trapPoints.n) >= item.cost;
-    const el = document.createElement('div');
-    el.className = 'item';
-    el.innerHTML = `
+    html += `<div class="item">
       <div class="top"><span class="ico">${item.icon}</span><span class="nm">${item.name}</span>
         <span class="badge">${item.dur()}</span></div>
       <div class="ds">${item.desc}</div>
       <div class="lvl">Elinde: <b>${trapInv[item.id]}</b></div>
       <div class="foot">
         <span class="pr">${item.cost} puan${item.count > 1 ? ` · ${item.count} adet` : ''}</span>
-        <button class="btn small buy" data-trap="${item.id}" ${canBuy ? '' : 'disabled'}>Al</button>
-      </div>`;
-    // tıklama doğrudan (pointer-events sorunlarını aşmak için)
-    const btn = el.querySelector('button');
-    if (btn) {
-      btn.addEventListener('click', (ev) => {
-        ev.preventDefault(); ev.stopPropagation();
-        buyTrap(item.id);
-      });
-      btn.addEventListener('mousedown', (ev) => ev.stopPropagation());
-    }
-    grid.appendChild(el);
+        <button type="button" class="btn small buy" data-trap="${item.id}"${canBuy ? '' : ' disabled'}>Al</button>
+      </div></div>`;
+  }
+  grid.innerHTML = html;
+
+  // Her butona ayrı ayrı dinleyici ekle
+  const btns = grid.querySelectorAll('[data-trap]');
+  for (const b of btns) {
+    const id = b.getAttribute('data-trap');
+    b.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      buyTrap(id);
+    });
   }
 }
 
 function buyTrap(id) {
   const item = TRAP_ITEMS.find((t) => t.id === id);
-  if (!item || Math.floor(trapPoints.n) < item.cost) return;
+  if (!item) { console.warn('[buyTrap] bilinmeyen tuzak:', id); return; }
+  if (Math.floor(trapPoints.n) < item.cost) {
+    toast('Yetersiz puan', `${item.cost - Math.floor(trapPoints.n)} puan daha gerek`, '#ff9c9c', 1100);
+    return;
+  }
   trapPoints.n -= item.cost;
   trapInv[id] += item.count;
   updateTrapHud();
@@ -55002,6 +55008,19 @@ function updateHUD(dt) {
   $('trapPoints').textContent = Math.floor(trapPoints.n);
   const invTxt = `🕸️${trapInv.net} 🍌${trapInv.banana} 🎭${trapInv.decoy}`;
   if ($('trapInv').textContent !== invTxt) $('trapInv').textContent = invTxt;
+  // yetenek kutularını canlı güncelle (tuzak envanteri değişince)
+  const abilBox = $('abilities');
+  if (abilBox && abilBox.children.length >= 5) {
+    const placeBox = abilBox.children[3];
+    const item = TRAP_ITEMS.find((t) => t.id === selectedTrap);
+    const has = trapInv[selectedTrap] > 0;
+    placeBox.classList.toggle('empty', !has);
+    placeBox.classList.toggle('ready', has);
+    const ico = placeBox.querySelector('.ico');
+    if (ico && item) ico.textContent = item.icon;
+    const keyEl = placeBox.querySelector('.key');
+    if (keyEl) keyEl.textContent = has ? `R ${trapInv[selectedTrap]}` : 'R';
+  }
   $('stamina').style.width = (player.stamina / player.staminaMax * 100) + '%';
   $('staminaWrap').classList.toggle('tired', player.exhausted);
 
