@@ -53263,7 +53263,7 @@ const $ = (id) => document.getElementById(id);
 
 /* ==================== AYARLAR ==================== */
 const CFG = {
-  sens: 0.0022,
+  sens: 0.0018,
   volume: 0.8,
   scares: true,
   quality: 'mid',
@@ -53913,11 +53913,18 @@ document.addEventListener('pointerlockchange', () => {
   if (!pointerLocked && state.phase === 'playing') pause();
 });
 
+let lastMoveT = 0;
 addEventListener('mousemove', (e) => {
   if (!pointerLocked || state.phase !== 'playing') return;
-  player.yaw -= e.movementX * CFG.sens;
-  player.pitch -= e.movementY * CFG.sens;
-  player.pitch = Math.max(-1.25, Math.min(1.25, player.pitch));
+  // ani fare zıplamalarını yoksay (pointer lock ilk kilitlenince olur)
+  const mx = Math.max(-120, Math.min(120, e.movementX || 0));
+  const my = Math.max(-120, Math.min(120, e.movementY || 0));
+  player.yaw -= mx * CFG.sens;
+  player.pitch -= my * CFG.sens;
+  player.pitch = Math.max(-1.3, Math.min(1.3, player.pitch));
+  // yaw'ı normalize et
+  if (player.yaw > Math.PI) player.yaw -= Math.PI * 2;
+  if (player.yaw < -Math.PI) player.yaw += Math.PI * 2;
 });
 
 addEventListener('resize', () => {
@@ -54034,12 +54041,11 @@ function updateFlashlight(dt) {
     (player.crouch ? 1.15 : CFG.eye) - 0.14,
     player.pos.z + Math.cos(player.yaw) * 0.18
   );
-  const dir = new THREE.Vector3(
-    -Math.sin(player.yaw) * Math.cos(player.pitch),
-    Math.sin(player.pitch),
-    -Math.cos(player.yaw) * Math.cos(player.pitch)
-  );
-  flashlight.target.position.copy(flashlight.position).add(dir.multiplyScalar(6));
+  // fener yönü: kamera yönüyle birebir aynı
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  flashlight.position.copy(camera.position);
+  flashlight.position.y -= 0.1;
+  flashlight.target.position.copy(camera.position).add(fwd.multiplyScalar(8));
 
   // ışık şiddeti: pil azalır (zamanla)
   const battery = Math.max(0.25, 1 - state.time / 420);
@@ -54519,32 +54525,23 @@ function winGame() {
 /* ==================== KAMERA ==================== */
 function updateCamera(dt) {
   const eye = player.crouch ? 1.05 : CFG.eye;
+
+  // konum: sadece yumuşak yükseklik geçişi, baş sallama YOK
   camera.position.x = player.pos.x;
   camera.position.z = player.pos.z;
-  camera.position.y = THREE.MathUtils.lerp(camera.position.y, eye, Math.min(1, dt * 9));
+  camera.position.y = THREE.MathUtils.lerp(camera.position.y, eye, Math.min(1, dt * 10));
 
-  const sp = player.vel.length();
-  if (sp > 0.4) {
-    player.bob += dt * sp * 1.9;
-    camera.position.y += Math.sin(player.bob) * 0.028;
-    camera.position.x += Math.cos(player.bob * 0.5) * 0.012;
-  }
-
-  // korku titremesi
+  // korku titremesi: ÇOK hafif, sadece kamera pozisyonu (dönme yok)
   if (player.shake > 0) player.shake = Math.max(0, player.shake - dt * 1.4);
-  const sh = player.shake * 0.03 + player.fear * 0.008;
-  if (sh > 0.001) {
+  const sh = player.shake * 0.012 + player.fear * 0.003;
+  if (sh > 0.0005) {
     camera.position.x += (Math.random() - 0.5) * sh;
     camera.position.y += (Math.random() - 0.5) * sh;
   }
 
-  const dir = new THREE.Vector3(
-    -Math.sin(player.yaw) * Math.cos(player.pitch),
-    Math.sin(player.pitch),
-    -Math.cos(player.yaw) * Math.cos(player.pitch)
-  );
-  camera.lookAt(camera.position.clone().add(dir));
-  camera.rotation.z = Math.sin(performance.now() * 0.0007) * player.fear * 0.012;
+  // YÖN: yaw + pitch doğrudan açı olarak (lookAt YOK, roll YOK)
+  const e = new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ');
+  camera.quaternion.setFromEuler(e);
 }
 
 /* ==================== HUD ==================== */
@@ -54649,7 +54646,7 @@ function startGame() {
 
   // oyuncu
   player.pos.set(0, 0, 18);
-  player.yaw = Math.PI;
+  player.yaw = 0;   // -Z yönüne bak
   player.pitch = 0;
   player.fear = 0;
   player.hp = 1;
