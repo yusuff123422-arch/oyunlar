@@ -14,7 +14,7 @@
 
   #hud { position:fixed; inset:0; pointer-events:none; z-index:5; }
   #topbar { position:absolute; top:16px; left:50%; transform:translateX(-50%);
-    display:flex; gap:10px; align-items:center; }
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
   .chip { background:rgba(13,17,23,.72); border:1px solid rgba(120,170,255,.22);
     backdrop-filter:blur(8px); padding:8px 14px; border-radius:12px; font-size:14px;
     font-weight:600; display:flex; gap:8px; align-items:center; white-space:nowrap; }
@@ -22,6 +22,7 @@
   #roleChip.hider { border-color:rgba(80,220,150,.45); color:#7df0b4; }
   #roleChip.seeker { border-color:rgba(255,110,110,.5); color:#ff9c9c; }
   #timer.warn b { color:#ff6b6b; }
+  #coinChip { border-color:rgba(255,200,70,.45); color:#ffd166; }
 
   #bottom { position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
     display:flex; flex-direction:column; align-items:center; gap:10px; }
@@ -33,19 +34,27 @@
   #stamina { height:100%; width:100%; background:linear-gradient(90deg,#3ddc97,#9ef01a); }
   #staminaWrap.tired #stamina { background:linear-gradient(90deg,#ff9f1c,#ff5252); }
 
+  /* yetenek çubuğu */
+  #abilities { position:absolute; bottom:20px; left:20px; display:flex; gap:8px; }
+  .ability { width:56px; height:56px; border-radius:12px; background:rgba(13,17,23,.8);
+    border:1px solid rgba(120,170,255,.28); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:1px; position:relative; overflow:hidden; }
+  .ability .ico { font-size:20px; line-height:1; }
+  .ability .key { font-size:9.5px; font-weight:800; color:#8fa3bd; letter-spacing:.5px; }
+  .ability .cd { position:absolute; inset:0; background:rgba(8,12,20,.78);
+    display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; color:#cfd8e6; }
+  .ability.ready { border-color:rgba(125,240,180,.55); }
+  .ability.empty { opacity:.35; }
+
   #crosshair { position:absolute; top:50%; left:50%; width:6px; height:6px; margin:-3px 0 0 -3px;
     border-radius:50%; background:rgba(255,255,255,.8); box-shadow:0 0 6px rgba(0,0,0,.9); }
-
-  /* tehlike göstergesi */
   #danger { position:absolute; inset:0; pointer-events:none; opacity:0;
     box-shadow:inset 0 0 160px 40px rgba(255,40,40,.65); transition:opacity .18s; }
-
-  /* minimap */
   #minimap { position:absolute; right:18px; top:18px; width:168px; height:168px;
     border-radius:14px; background:rgba(13,17,23,.78); border:1px solid rgba(120,170,255,.25);
     backdrop-filter:blur(8px); }
 
-  #toast { position:absolute; top:42%; left:50%; transform:translate(-50%,-50%) scale(.9);
+  #toast { position:absolute; top:40%; left:50%; transform:translate(-50%,-50%) scale(.9);
     font-size:34px; font-weight:800; letter-spacing:1px; opacity:0; text-align:center;
     text-shadow:0 4px 24px rgba(0,0,0,.95); transition:all .3s cubic-bezier(.2,1.4,.5,1); }
   #toast.on { opacity:1; transform:translate(-50%,-50%) scale(1); }
@@ -54,29 +63,50 @@
   .overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
     background:radial-gradient(1200px 700px at 50% 40%, rgba(20,34,52,.95), rgba(8,11,18,.985));
     z-index:20; }
-  .panel { width:min(680px, 92vw); background:rgba(16,22,33,.92);
-    border:1px solid rgba(120,170,255,.2); border-radius:22px; padding:32px 34px;
+  .panel { width:min(760px, 94vw); background:rgba(16,22,33,.94);
+    border:1px solid rgba(120,170,255,.2); border-radius:22px; padding:28px 30px;
     box-shadow:0 30px 80px rgba(0,0,0,.6); max-height:92vh; overflow:auto; }
-  h1 { font-size:32px; letter-spacing:-.5px; margin-bottom:6px; }
+  h1 { font-size:30px; letter-spacing:-.5px; margin-bottom:4px; }
   h1 span { color:#7df0b4; }
-  .sub { color:#8fa3bd; font-size:14.5px; line-height:1.65; margin-bottom:20px; }
+  h2 { font-size:17px; margin:18px 0 10px; color:#cfe0f5; display:flex; align-items:center; gap:8px; }
+  .sub { color:#8fa3bd; font-size:14px; line-height:1.6; margin-bottom:14px; }
   .sub b { color:#dbe7f7; }
-  .row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
   .btn { cursor:pointer; border:1px solid rgba(120,170,255,.3); background:rgba(120,170,255,.1);
-    color:#dbe7f7; padding:11px 18px; border-radius:12px; font-size:14.5px; font-weight:650;
+    color:#dbe7f7; padding:10px 16px; border-radius:11px; font-size:14px; font-weight:650;
     font-family:inherit; transition:all .15s; }
   .btn:hover { background:rgba(120,170,255,.2); transform:translateY(-1px); }
   .btn.primary { background:linear-gradient(135deg,#3ddc97,#25b6a0); border-color:transparent;
-    color:#04140e; font-weight:800; padding:13px 26px; font-size:15.5px; }
+    color:#04140e; font-weight:800; padding:12px 24px; font-size:15px; }
   .btn.primary:hover { filter:brightness(1.08); }
-  .keys { display:grid; grid-template-columns:repeat(2,1fr); gap:7px 22px; margin-top:16px;
-    padding-top:16px; border-top:1px solid rgba(120,170,255,.14); font-size:13px; color:#9fb0c6; }
+  .btn.small { padding:6px 11px; font-size:12.5px; border-radius:9px; }
+  .btn.buy { background:linear-gradient(135deg,#ffd166,#f0a500); border:none; color:#241a00; font-weight:800; }
+  .btn.buy:disabled { background:rgba(255,255,255,.08); color:#7c8ba1; cursor:not-allowed; transform:none; }
+  .keys { display:grid; grid-template-columns:repeat(2,1fr); gap:6px 20px; margin-top:12px;
+    padding-top:12px; border-top:1px solid rgba(120,170,255,.14); font-size:12.5px; color:#9fb0c6; }
   .keys kbd { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
     border-bottom-width:2px; border-radius:5px; padding:1px 6px; font-family:inherit;
-    font-size:11.5px; font-weight:700; color:#dfe9f6; margin-right:6px; }
-  .stat { display:flex; justify-content:space-between; padding:8px 0;
-    border-bottom:1px solid rgba(120,170,255,.1); font-size:14.5px; color:#a9bacf; }
+    font-size:11px; font-weight:700; color:#dfe9f6; margin-right:6px; }
+  .stat { display:flex; justify-content:space-between; padding:7px 0;
+    border-bottom:1px solid rgba(120,170,255,.1); font-size:14px; color:#a9bacf; }
   .stat b { color:#e8eef7; }
+
+  /* mağaza */
+  .shopGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+  .item { background:rgba(255,255,255,.035); border:1px solid rgba(120,170,255,.16);
+    border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:6px; }
+  .item.owned { border-color:rgba(125,240,180,.4); background:rgba(125,240,180,.06); }
+  .item .top { display:flex; align-items:center; gap:8px; }
+  .item .ico { font-size:20px; }
+  .item .nm { font-weight:750; font-size:13.5px; }
+  .item .ds { font-size:12px; color:#8fa3bd; line-height:1.45; flex:1; }
+  .item .foot { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:2px; }
+  .item .pr { font-size:13px; font-weight:800; color:#ffd166; }
+  .item .lvl { font-size:11px; color:#7df0b4; font-weight:700; }
+  .badge { font-size:10.5px; padding:2px 7px; border-radius:20px; background:rgba(120,170,255,.16);
+    color:#a9c6f0; font-weight:700; }
+  .badge.on { background:rgba(125,240,180,.18); color:#7df0b4; }
+  .coins { font-size:15px; font-weight:800; color:#ffd166; }
 </style>
 </head>
 <body>
@@ -85,11 +115,12 @@
   <div id="topbar">
     <div class="chip" id="roleChip"><span id="roleTxt">SAKLANAN</span></div>
     <div class="chip" id="timer">⏱ <b id="timeVal">0:00</b></div>
-    <div class="chip" id="scoreChip">🏆 <b id="scoreVal">0</b></div>
+    <div class="chip" id="coinChip">🪙 <b id="coinVal">0</b></div>
   </div>
   <canvas id="minimap" width="336" height="336"></canvas>
   <div id="crosshair"></div>
   <div id="danger"></div>
+  <div id="abilities"></div>
   <div id="bottom">
     <div id="prompt"></div>
     <div id="staminaWrap"><div id="stamina"></div></div>
@@ -97,37 +128,76 @@
   <div id="toast"></div>
 </div>
 
+<!-- ANA MENÜ -->
 <div class="overlay" id="menu">
   <div class="panel">
     <h1>Hide and Seek <span>3D</span></h1>
-    <p class="sub">
-      Her turda rolün rastgele: <b>%70 saklanan</b>, <b>%30 ebe</b>.
-      Ebe seni görürse <b>kovalıyor</b> — yakalanırsan kaybediyorsun.
+    <p class="sub" style="margin-bottom:12px">
+      <span class="coins">🪙 <span id="menuCoins">0</span></span> &nbsp;·&nbsp;
+      <span style="color:#7df0b4;font-weight:700">Seviye <span id="menuLevel">1</span></span> &nbsp;·&nbsp;
+      <span id="menuStats" style="font-size:13px"></span>
     </p>
     <div class="row">
       <button class="btn primary" id="startBtn">Oyuna Başla</button>
-      <button class="btn" id="sensBtn">Hassasiyet: Orta</button>
-      <button class="btn" id="invertBtn">Fare Y: Normal</button>
+      <button class="btn" id="shopBtn">🛒 Mağaza</button>
+      <button class="btn" id="loadoutBtn">🎒 Ekipman</button>
     </div>
+    <div class="row">
+      <button class="btn small" id="sensBtn">Hassasiyet: Orta</button>
+      <button class="btn small" id="invertBtn">Fare Y: Normal</button>
+      <button class="btn small" id="resetBtn">Kaydı Sıfırla</button>
+    </div>
+    <p class="sub" style="margin:14px 0 0; font-size:13px">
+      Her tur rolün rastgele: <b>%70 saklanan</b>, <b>%30 ebe</b>. Ebe seni görürse kovalar,
+      yakalanırsan tur biter. Mağazadan aldığın ekipmanla hayatta kal.
+    </p>
     <div class="keys">
       <div><kbd>W A S D</kbd>Hareket</div>
       <div><kbd>Fare</kbd>Bak</div>
       <div><kbd>Shift</kbd>Koş (ses çıkarır)</div>
-      <div><kbd>E</kbd>Çalıya/araca saklan</div>
+      <div><kbd>E</kbd>Saklan / çık</div>
+      <div><kbd>Q</kbd>Tuzak kur</div>
+      <div><kbd>F</kbd>Yetenek (sprint/radar)</div>
+      <div><kbd>G</kbd>Sis bombası / dondur</div>
       <div><kbd>Esc</kbd>Duraklat</div>
       <div><kbd>Sol tık</kbd>Yakala (ebe)</div>
+      <div><kbd>M</kbd>Mini harita büyüt</div>
     </div>
-    <p class="sub" style="margin:14px 0 0; font-size:13px">
-      Haritada senden başka <b>4 bot</b> var — 3'ü gizleniyor, 1'i ebe.
-      Ebeysen botları yakala; gizlenen botlar kaçar.
-    </p>
   </div>
 </div>
 
+<!-- MAĞAZA -->
+<div class="overlay hidden" id="shop">
+  <div class="panel">
+    <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:6px">
+      <h1 style="font-size:26px;margin:0">🛒 Mağaza</h1>
+      <div class="coins" style="font-size:18px">🪙 <span id="shopCoins">0</span></div>
+    </div>
+    <p class="sub" style="margin-bottom:12px">Kazandığın paralarla ekipman al. Her eşya 3 seviyeye kadar gelişir.</p>
+    <div class="shopGrid" id="shopGrid"></div>
+    <div class="row" style="margin-top:18px">
+      <button class="btn primary" id="shopBack">Geri</button>
+    </div>
+  </div>
+</div>
+
+<!-- EKİPMAN -->
+<div class="overlay hidden" id="loadout">
+  <div class="panel">
+    <h1 style="font-size:26px;margin-bottom:6px">🎒 Ekipman</h1>
+    <p class="sub">Sahip oldukların arasından birer eşya seç. Sadece seçili olanlar oyunda aktif.</p>
+    <div id="loadoutList"></div>
+    <div class="row" style="margin-top:18px">
+      <button class="btn primary" id="loadoutBack">Geri</button>
+    </div>
+  </div>
+</div>
+
+<!-- DURAKLAT -->
 <div class="overlay hidden" id="pause">
   <div class="panel" style="text-align:center">
-    <h1 style="font-size:28px">Duraklatıldı</h1>
-    <p class="sub" style="margin-bottom:20px">Devam etmek için tıkla.</p>
+    <h1 style="font-size:26px">Duraklatıldı</h1>
+    <p class="sub" style="margin-bottom:16px" id="pauseSub">Devam etmek için tıkla.</p>
     <div class="row" style="justify-content:center">
       <button class="btn primary" id="resumeBtn">Devam Et</button>
       <button class="btn" id="quitBtn">Menüye Dön</button>
@@ -135,20 +205,22 @@
   </div>
 </div>
 
+<!-- TUR SONU -->
 <div class="overlay hidden" id="endScreen">
   <div class="panel">
     <h1 id="endTitle">Kazandın!</h1>
     <p class="sub" id="endSub"></p>
     <div id="endStats"></div>
-    <div class="row" style="margin-top:22px">
+    <div class="row" style="margin-top:20px">
       <button class="btn primary" id="nextBtn">Sonraki Tur</button>
+      <button class="btn" id="endShopBtn">🛒 Mağaza</button>
       <button class="btn" id="menuBtn">Menü</button>
     </div>
   </div>
 </div>
 
 <script type="module">
-/* Hide and Seek 3D — tek dosya surumu (three.js dahil) */
+/* Hide and Seek 3D — tek dosya (three.js gömülü) */
 const THREE = (() => {
 /**
  * @license
@@ -48369,7 +48441,10 @@ const _trackRe = new RegExp( ''
 	+ _nodeRe
 	+ _objectRe
 	+ _propertyRe
-	+ '$'
+	+ '
+</body>
+</html>
+
 );
 
 const _supportedObjectNames = [ 'material', 'materials', 'bones', 'map' ];
@@ -53200,13 +53275,15 @@ return { ACESFilmicToneMapping, AddEquation, AddOperation, AdditiveAnimationBlen
 
 
 /* =========================================================
-   SAKLAMBAÇ 3D — AÇIK HAVA HARİTASI
-   %70 saklanan / %30 ebe · ebe görünce kovalar, yakalanınca kaybedersin
+   HIDE AND SEEK 3D
+   · %70 saklanan / %30 ebe
+   · Mağaza + ekipman + tuzaklar + kayıt (localStorage)
+   · Gelişmiş bot yapay zekası (hafıza, koordinasyon, devriye)
    ========================================================= */
 
 const $ = (id) => document.getElementById(id);
 
-/* ---------------- Ayarlar ---------------- */
+/* ==================== AYARLAR ==================== */
 const SENS_LEVELS = [
   { name: 'Düşük', v: 0.0016 },
   { name: 'Orta', v: 0.0024 },
@@ -53214,19 +53291,185 @@ const SENS_LEVELS = [
 ];
 const cfg = { sensIdx: 1, invertY: false, speed: 5.2, runSpeed: 8.6, radius: 0.4, eye: 1.65 };
 
-const WORLD = 44;            // harita yarıçapı (kare)
+const WORLD = 44;
 const WALK = WORLD - 2.5;
+const TIME_LIMIT = 90;
 
-/* ---------------- Dünya: engeller ---------------- */
-const obstacles = [];        // {minX,maxX,minZ,maxZ,h}
-const covers = [];           // {x,z,r,type,obj}
-const coverables = [];       // saklanılabilir objeler
+/* ==================== KAYIT ==================== */
+const SAVE_KEY = 'hideAndSeek3d.save.v2';
+
+const DEFAULT_SAVE = {
+  coins: 0,
+  level: 1,
+  xp: 0,
+  wins: 0,
+  losses: 0,
+  bestStreak: 0,
+  bestScore: 0,
+  owned: {},        // id -> seviye
+  loadout: {},      // slot -> id|null
+  settings: { sensIdx: 1, invertY: false, bigMap: false },
+};
+
+let save = loadSave();
+
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return structuredClone(DEFAULT_SAVE);
+    const parsed = JSON.parse(raw);
+    return {
+      ...structuredClone(DEFAULT_SAVE),
+      ...parsed,
+      settings: { ...DEFAULT_SAVE.settings, ...(parsed.settings || {}) },
+      owned: { ...(parsed.owned || {}) },
+      loadout: { ...(parsed.loadout || {}) },
+    };
+  } catch {
+    return structuredClone(DEFAULT_SAVE);
+  }
+}
+
+function persist() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch {}
+}
+
+function xpForLevel(l) { return 300 + (l - 1) * 250; }
+
+function addXp(n) {
+  save.xp += n;
+  let leveled = false;
+  while (save.xp >= xpForLevel(save.level)) {
+    save.xp -= xpForLevel(save.level);
+    save.level++;
+    leveled = true;
+    save.coins += 100;
+  }
+  if (leveled) toast(`SEVİYE ${save.level}!`, '+100 🪙 ödül', '#ffd166', 1800);
+  persist();
+}
+
+cfg.sensIdx = save.settings.sensIdx;
+cfg.invertY = save.settings.invertY;
+
+/* ==================== MAĞAZA VERİSİ ==================== */
+/* slot: 'passive' | 'trap' | 'ability' */
+const SHOP = [
+  {
+    id: 'sneakers', slot: 'passive', icon: '👟', name: 'Sessiz Ayakkabı', max: 3,
+    desc: 'Adım sesini azaltır, ebe botlar seni daha zor duyar.',
+    effect: (l) => `Gürültü -${l * 28}%`,
+    cost: (l) => 250 + l * 250,
+  },
+  {
+    id: 'battery', slot: 'passive', icon: '🔋', name: 'Ekstra Dayanıklılık', max: 3,
+    desc: 'Daha uzun süre koşabilirsin.',
+    effect: (l) => `Dayanıklılık +${l * 30}%`,
+    cost: (l) => 300 + l * 250,
+  },
+  {
+    id: 'ghost', slot: 'passive', icon: '👻', name: 'Gölge Pelerin', max: 3,
+    desc: 'Saklandığında ebe botlar seni daha da zor görür.',
+    effect: (l) => `Saklanma gizliliği +${l * 25}%`,
+    cost: (l) => 400 + l * 300,
+  },
+  {
+    id: 'luck', slot: 'passive', icon: '🍀', name: 'Şans Tılsımı', max: 3,
+    desc: 'Kazanınca daha fazla para kazanırsın.',
+    effect: (l) => `Para +${l * 20}%`,
+    cost: (l) => 500 + l * 350,
+  },
+  {
+    id: 'speed', slot: 'passive', icon: '⚡', name: 'Hız Botları', max: 3,
+    desc: 'Temel hareket hızını artırır.',
+    effect: (l) => `Hız +${l * 7}%`,
+    cost: (l) => 450 + l * 300,
+  },
+  {
+    id: 'trap_net', slot: 'trap', icon: '🕸️', name: 'Ağ Tuzağı', max: 3,
+    desc: 'Yere tuzak kur. Ebe basarsa 4 sn donar.',
+    effect: (l) => `${1 + l} adet · ${3 + l} sn`,
+    cost: (l) => 200 + l * 150,
+  },
+  {
+    id: 'trap_decoy', slot: 'trap', icon: '🎭', name: 'Yem Bot', max: 3,
+    desc: 'Sahte bir bot bırakır; ebeler onu kovalar.',
+    effect: (l) => `${1 + l} adet · ${4 + l} sn`,
+    cost: (l) => 350 + l * 200,
+  },
+  {
+    id: 'trap_banana', slot: 'trap', icon: '🍌', name: 'Muz Kabuğu', max: 3,
+    desc: 'Ebe basınca düşer ve 2 sn kalkamaz.',
+    effect: (l) => `${2 + l * 2} adet`,
+    cost: (l) => 150 + l * 120,
+  },
+  {
+    id: 'ab_sprint', slot: 'ability', icon: '💨', name: 'Sprint Patlaması', max: 3,
+    desc: 'F ile kısa süreli çok hızlı koşu.',
+    effect: (l) => `${2 + l * 0.4} sn · ${18 - l * 3} sn bekleme`,
+    cost: (l) => 400 + l * 250,
+  },
+  {
+    id: 'ab_radar', slot: 'ability', icon: '📡', name: 'Ebe Radarı', max: 3,
+    desc: 'F ile tüm ebeleri 5 sn boyunca mini haritada vurgular.',
+    effect: (l) => `${4 + l} sn · ${20 - l * 3} sn bekleme`,
+    cost: (l) => 300 + l * 200,
+  },
+  {
+    id: 'ab_smoke', slot: 'ability', icon: '💨', name: 'Sis Bombası', max: 3,
+    desc: 'G ile sis at; içindeki ebeler seni göremez.',
+    effect: (l) => `${5 + l} sn · ${22 - l * 3} sn bekleme`,
+    cost: (l) => 450 + l * 250,
+  },
+  {
+    id: 'ab_freeze', slot: 'ability', icon: '❄️', name: 'Dondurucu', max: 3,
+    desc: 'G ile yakındaki ebeleri dondur.',
+    effect: (l) => `${2 + l} sn · ${24 - l * 3} sn bekleme`,
+    cost: (l) => 550 + l * 300,
+  },
+];
+
+const SHOP_BY_ID = Object.fromEntries(SHOP.map((s) => [s.id, s]));
+
+function ownedLevel(id) { return save.owned[id] || 0; }
+
+function passiveLevel(id) {
+  // sadece ekipmanda seçiliyse etki eder
+  const slot = SHOP_BY_ID[id].slot;
+  return save.loadout[slot] === id ? ownedLevel(id) : 0;
+}
+
+function buyItem(id) {
+  const item = SHOP_BY_ID[id];
+  const lvl = ownedLevel(id);
+  if (lvl >= item.max) return;
+  const price = item.cost(lvl);
+  if (save.coins < price) { toast('Yetersiz para', `${price - save.coins} 🪙 daha gerek`, '#ff9c9c', 1200); return; }
+  save.coins -= price;
+  save.owned[id] = lvl + 1;
+  // ilk alımda otomatik ekipmana tak
+  if (!save.loadout[item.slot]) save.loadout[item.slot] = id;
+  persist();
+  renderShop();
+  renderMenuStats();
+  toast('SATIN ALINDI', `${item.name} · Sv.${lvl + 1}`, '#7df0b4', 1200);
+}
+
+function equipItem(id) {
+  const item = SHOP_BY_ID[id];
+  save.loadout[item.slot] = save.loadout[item.slot] === id ? null : id;
+  persist();
+  renderLoadout();
+}
+
+/* ==================== DÜNYA ==================== */
+const obstacles = [];
+const coverables = [];
 
 function addObstacle(cx, cz, w, d, h = 1.6) {
   obstacles.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2, h });
 }
 
-/* ---------------- Sahne ---------------- */
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -53240,27 +53483,23 @@ scene.fog = new THREE.Fog(0x9ed0f5, 55, 130);
 
 const camera = new THREE.PerspectiveCamera(74, innerWidth / innerHeight, 0.06, 400);
 
-// Gökyüzü gradyanı
+// Gökyüzü
 {
   const c = document.createElement('canvas');
   c.width = 8; c.height = 256;
   const ctx = c.getContext('2d');
   const g = ctx.createLinearGradient(0, 0, 0, 256);
-  g.addColorStop(0, '#3f7fc4');
-  g.addColorStop(0.45, '#7db8e8');
-  g.addColorStop(0.72, '#b9dcf2');
-  g.addColorStop(1, '#dfeefb');
+  g.addColorStop(0, '#3f7fc4'); g.addColorStop(0.45, '#7db8e8');
+  g.addColorStop(0.72, '#b9dcf2'); g.addColorStop(1, '#dfeefb');
   ctx.fillStyle = g; ctx.fillRect(0, 0, 8, 256);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const sky = new THREE.Mesh(
+  scene.add(new THREE.Mesh(
     new THREE.SphereGeometry(220, 24, 16),
     new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false })
-  );
-  scene.add(sky);
+  ));
 }
 
-// Işıklar
 scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x5c6b4a, 1.0));
 const sun = new THREE.DirectionalLight(0xfff2d8, 1.9);
 sun.position.set(35, 55, 22);
@@ -53272,24 +53511,22 @@ sun.shadow.camera.far = 160;
 sun.shadow.bias = -0.0008;
 scene.add(sun);
 
-/* ---------------- Zemin ---------------- */
+// Zemin
 {
-  const geo = new THREE.PlaneGeometry(WORLD * 2.4, WORLD * 2.4, 1, 1);
-  const mat = new THREE.MeshStandardMaterial({ color: 0x6f9e57, roughness: 1 });
-  const ground = new THREE.Mesh(geo, mat);
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(WORLD * 2.4, WORLD * 2.4),
+    new THREE.MeshStandardMaterial({ color: 0x6f9e57, roughness: 1 })
+  );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
-  scene.add(ground);
 
-  // çim dokusu (procedural canvas)
   const c = document.createElement('canvas');
   c.width = c.height = 256;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#6f9e57'; ctx.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 2600; i++) {
     const x = Math.random() * 256, y = Math.random() * 256;
-    const shade = Math.random();
-    ctx.fillStyle = shade > 0.5
+    ctx.fillStyle = Math.random() > 0.5
       ? `rgba(${120 + Math.random() * 40},${160 + Math.random() * 40},${90 + Math.random() * 30},.5)`
       : `rgba(${70 + Math.random() * 30},${110 + Math.random() * 30},${60 + Math.random() * 25},.45)`;
     ctx.fillRect(x, y, 3, 3);
@@ -53300,9 +53537,10 @@ scene.add(sun);
   tex.colorSpace = THREE.SRGBColorSpace;
   ground.material.map = tex;
   ground.material.needsUpdate = true;
+  scene.add(ground);
 }
 
-/* ---------------- Yardımcılar ---------------- */
+/* ---- materyaller ---- */
 const matTrunk = new THREE.MeshStandardMaterial({ color: 0x6b4a2f, roughness: 0.95 });
 const matLeafA = new THREE.MeshStandardMaterial({ color: 0x3f7a3a, roughness: 0.9 });
 const matLeafB = new THREE.MeshStandardMaterial({ color: 0x4f9147, roughness: 0.9 });
@@ -53317,20 +53555,16 @@ function addTree(x, z, scale = 1) {
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28 * scale, 0.42 * scale, 3.4 * scale, 8), matTrunk);
   trunk.position.y = 1.7 * scale; trunk.castShadow = true; trunk.receiveShadow = true;
   g.add(trunk);
-  const leafMats = [matLeafA, matLeafB, matLeafC];
+  const mats = [matLeafA, matLeafB, matLeafC];
   for (let i = 0; i < 3; i++) {
-    const r = (1.9 - i * 0.42) * scale;
-    const blob = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), leafMats[i % 3]);
+    const blob = new THREE.Mesh(new THREE.SphereGeometry((1.9 - i * 0.42) * scale, 10, 8), mats[i % 3]);
     blob.position.set((Math.random() - 0.5) * 0.5, (3.4 + i * 1.05) * scale, (Math.random() - 0.5) * 0.5);
-    blob.castShadow = true;
-    g.add(blob);
+    blob.castShadow = true; g.add(blob);
   }
   g.position.set(x, 0, z);
   scene.add(g);
   addObstacle(x, z, 0.9 * scale, 0.9 * scale, 3);
-  // Ağaç gövdesi saklanma noktası
-  coverables.push({ x, z, r: 0.55 * scale, yaw: Math.random() * Math.PI * 2, type: 'ağaç' });
-  return g;
+  coverables.push({ x, z, r: 0.55 * scale, type: 'ağaç' });
 }
 
 function addBush(x, z, s = 1) {
@@ -53338,13 +53572,11 @@ function addBush(x, z, s = 1) {
   for (let i = 0; i < 4; i++) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.75 * s, 9, 7), matBush);
     b.position.set((Math.random() - 0.5) * 1.3 * s, 0.6 * s + Math.random() * 0.3, (Math.random() - 0.5) * 1.3 * s);
-    b.castShadow = true; b.receiveShadow = true;
-    g.add(b);
+    b.castShadow = true; b.receiveShadow = true; g.add(b);
   }
   g.position.set(x, 0, z);
   scene.add(g);
-  coverables.push({ x, z, r: 0.9 * s, yaw: Math.random() * Math.PI * 2, type: 'çalı' });
-  return g;
+  coverables.push({ x, z, r: 0.9 * s, type: 'çalı' });
 }
 
 function addRock(x, z, s = 1) {
@@ -53355,8 +53587,7 @@ function addRock(x, z, s = 1) {
   m.castShadow = true; m.receiveShadow = true;
   scene.add(m);
   addObstacle(x, z, 1.5 * s, 1.5 * s, 1.2);
-  coverables.push({ x, z, r: 1.0 * s, yaw: Math.random() * Math.PI * 2, type: 'kaya' });
-  return m;
+  coverables.push({ x, z, r: 1.0 * s, type: 'kaya' });
 }
 
 function addCrate(x, z, s = 1) {
@@ -53366,8 +53597,7 @@ function addCrate(x, z, s = 1) {
   m.castShadow = true; m.receiveShadow = true;
   scene.add(m);
   addObstacle(x, z, 1.4 * s, 1.4 * s, 1.4);
-  coverables.push({ x, z, r: 0.9 * s, yaw: m.rotation.y, type: 'sandık' });
-  return m;
+  coverables.push({ x, z, r: 0.9 * s, type: 'sandık' });
 }
 
 function addHay(x, z) {
@@ -53378,42 +53608,38 @@ function addHay(x, z) {
   m.castShadow = true; m.receiveShadow = true;
   scene.add(m);
   addObstacle(x, z, 1.6, 1.6, 1.5);
-  coverables.push({ x, z, r: 1.0, yaw: 0, type: 'saman' });
-  return m;
+  coverables.push({ x, z, r: 1.0, type: 'saman' });
 }
 
-/* ---------------- Haritayı kur ---------------- */
-// Çevre çiti
+// Çit
 {
-  const fenceMat = new THREE.MeshStandardMaterial({ color: 0x8a6b4a, roughness: 0.9 });
-  const step = 3.2;
-  for (let i = -WALK; i <= WALK; i += step) {
+  const fm = new THREE.MeshStandardMaterial({ color: 0x8a6b4a, roughness: 0.9 });
+  for (let i = -WALK; i <= WALK; i += 3.2) {
     for (const [x, z] of [[i, -WALK], [i, WALK], [-WALK, i], [WALK, i]]) {
-      const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.1, 0.22), fenceMat);
-      p.position.set(x, 1.05, z); p.castShadow = true;
-      scene.add(p);
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.1, 0.22), fm);
+      p.position.set(x, 1.05, z); p.castShadow = true; scene.add(p);
     }
   }
-  const railGeoH = new THREE.BoxGeometry(WALK * 2, 0.13, 0.13);
-  const railGeoV = new THREE.BoxGeometry(0.13, 0.13, WALK * 2);
   for (const y of [0.75, 1.55]) {
     for (const z of [-WALK, WALK]) {
-      const r = new THREE.Mesh(railGeoH, fenceMat); r.position.set(0, y, z); scene.add(r);
+      const r = new THREE.Mesh(new THREE.BoxGeometry(WALK * 2, 0.13, 0.13), fm);
+      r.position.set(0, y, z); scene.add(r);
     }
     for (const x of [-WALK, WALK]) {
-      const r = new THREE.Mesh(railGeoV, fenceMat); r.position.set(x, y, 0); scene.add(r);
+      const r = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, WALK * 2), fm);
+      r.position.set(x, y, 0); scene.add(r);
     }
   }
 }
 
-// Ağaçlar (çevre + iç)
+// Ağaçlar
 const treePositions = [];
 for (let i = 0; i < 46; i++) {
   let x, z, ok = false, tries = 0;
   while (!ok && tries++ < 60) {
     x = (Math.random() * 2 - 1) * (WALK - 3);
     z = (Math.random() * 2 - 1) * (WALK - 3);
-    if (Math.hypot(x, z) < 7) continue;                 // doğuş alanını boş bırak
+    if (Math.hypot(x, z) < 7) continue;
     if (treePositions.some((p) => Math.hypot(p[0] - x, p[1] - z) < 4.2)) continue;
     ok = true;
   }
@@ -53422,24 +53648,18 @@ for (let i = 0; i < 46; i++) {
   addTree(x, z, 0.85 + Math.random() * 0.6);
 }
 
-// Çalılar
 for (let i = 0; i < 34; i++) {
   const x = (Math.random() * 2 - 1) * (WALK - 3);
   const z = (Math.random() * 2 - 1) * (WALK - 3);
   if (Math.hypot(x, z) < 6) continue;
-  if (obstacles.some((b) => Math.abs(x - (b.minX + b.maxX) / 2) < 2 && Math.abs(z - (b.minZ + b.maxZ) / 2) < 2)) continue;
   addBush(x, z, 0.8 + Math.random() * 0.6);
 }
-
-// Kayalar
 for (let i = 0; i < 16; i++) {
   const x = (Math.random() * 2 - 1) * (WALK - 4);
   const z = (Math.random() * 2 - 1) * (WALK - 4);
   if (Math.hypot(x, z) < 8) continue;
   addRock(x, z, 0.8 + Math.random() * 0.7);
 }
-
-// Sandıklar / saman balyaları
 for (let i = 0; i < 10; i++) {
   const x = (Math.random() * 2 - 1) * (WALK - 5);
   const z = (Math.random() * 2 - 1) * (WALK - 5);
@@ -53448,7 +53668,7 @@ for (let i = 0; i < 10; i++) {
   else addHay(x, z);
 }
 
-// Küçük bir kulübe (basit duvarlar)
+// Kulübe
 {
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xc9b79a, roughness: 0.95 });
   const roofMat = new THREE.MeshStandardMaterial({ color: 0x8a3b3b, roughness: 0.85 });
@@ -53458,7 +53678,6 @@ for (let i = 0; i < 10; i++) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
     m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; hut.add(m);
   };
-  // arka + yan duvarlar (önü açık)
   mk(W, H, T, 0, H / 2, -D / 2);
   mk(T, H, D, -W / 2, H / 2, 0);
   mk(T, H, D, W / 2, H / 2, 0);
@@ -53469,10 +53688,10 @@ for (let i = 0; i < 10; i++) {
   addObstacle(-22, 20 - D / 2, W, T, H);
   addObstacle(-22 - W / 2, 20, T, D, H);
   addObstacle(-22 + W / 2, 20, T, D, H);
-  coverables.push({ x: -22, z: 20 - D / 2 + 0.9, r: 1.0, yaw: 0, type: 'kulübe' });
+  coverables.push({ x: -22, z: 20 - D / 2 + 0.9, r: 1.0, type: 'kulübe' });
 }
 
-// Gölet (görsel)
+// Gölet
 {
   const pond = new THREE.Mesh(
     new THREE.CircleGeometry(6, 40),
@@ -53483,7 +53702,7 @@ for (let i = 0; i < 10; i++) {
   scene.add(pond);
 }
 
-/* ---------------- Karakter ---------------- */
+/* ==================== KARAKTER ==================== */
 function makeCharacter(bodyColor, isSeeker) {
   const g = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.65 });
@@ -53502,13 +53721,11 @@ function makeCharacter(bodyColor, isSeeker) {
     e.position.set(sx, 1.65, 0.2); g.add(e);
   }
 
-  // kollar
   const arms = [];
   for (const sx of [-0.34, 0.34]) {
     const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.45, 4, 8), bodyMat);
     a.position.set(sx, 1.12, 0); a.castShadow = true; g.add(a); arms.push(a);
   }
-  // bacaklar
   const legs = [];
   for (const sx of [-0.13, 0.13]) {
     const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.46, 4, 8), dark);
@@ -53532,17 +53749,17 @@ function makeCharacter(bodyColor, isSeeker) {
   return g;
 }
 
-/* ---------------- Oyuncu ---------------- */
+/* ==================== OYUNCU ==================== */
 const player = {
   pos: new THREE.Vector3(0, 0, 0),
   yaw: Math.PI, pitch: 0,
   vel: new THREE.Vector3(),
-  stamina: 100, exhausted: false,
-  hidden: null, bob: 0, stepTimer: 0,
-  stun: 0,
+  stamina: 100, staminaMax: 100, exhausted: false,
+  hidden: null, bob: 0, stepTimer: 0, stun: 0,
+  sprintT: 0, sprintCd: 0, sprintMult: 1,
 };
 
-/* ---------------- Girdi ---------------- */
+/* ==================== GİRDİ ==================== */
 const keys = Object.create(null);
 let pointerLocked = false;
 
@@ -53550,6 +53767,10 @@ addEventListener('keydown', (e) => {
   if (keys[e.code]) return;
   keys[e.code] = true;
   if (e.code === 'KeyE') tryInteract();
+  if (e.code === 'KeyQ') placeTrap();
+  if (e.code === 'KeyF') useAbility(0);
+  if (e.code === 'KeyG') useAbility(1);
+  if (e.code === 'KeyM') { save.settings.bigMap = !save.settings.bigMap; persist(); applyMapSize(); }
   if (e.code === 'Escape' && state.phase === 'playing') pauseGame();
   if (['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
 });
@@ -53580,7 +53801,7 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-/* ---------------- Çarpışma ---------------- */
+/* ==================== FİZİK / GÖRÜŞ ==================== */
 function collides(x, z, r) {
   if (x - r < -WALK || x + r > WALK || z - r < -WALK || z + r > WALK) return true;
   for (const b of obstacles) {
@@ -53597,7 +53818,6 @@ function moveEntity(ent, dx, dz, r) {
   if (!collides(ent.pos.x, ent.pos.z + dz, r)) ent.pos.z += dz;
 }
 
-/* ---------------- Görüş hattı ---------------- */
 function segBox(x1, z1, x2, z2, b) {
   const dx = x2 - x1, dz = z2 - z1;
   let t0 = 0, t1 = 1;
@@ -53619,12 +53839,16 @@ function hasLOS(ax, az, bx, bz) {
   return true;
 }
 
-/* ---------------- Durum ---------------- */
-const state = { phase: 'menu', role: 'hider', time: 0, score: 0, streak: 0, round: 0 };
+/* ==================== DURUM ==================== */
+const state = { phase: 'menu', role: 'hider', time: 0, round: 0, danger: 0 };
 
-const npcs = [];       // {mesh,pos,yaw,role:'hider'|'seeker',state,...}
+const npcs = [];
+const traps = [];       // kurulu tuzaklar
+const smokeZones = [];  // sis alanları
 let catchCooldown = 0;
-const TIME_LIMIT = 90;
+let radarT = 0;
+let abilityCd = [0, 0];
+let hiderTargets = [];  // ebelerin ortak bilgi havuzu
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const V = (x, z) => new THREE.Vector3(x, 0, z);
@@ -53646,7 +53870,39 @@ function lerpAngle(a, b, t) {
   return a + d * t;
 }
 
-/* ---------------- NPC üret ---------------- */
+/* ==================== NAVİGASYON: ileri görüşlü yol noktası ==================== */
+function smartWaypoint(from, to, avoidPlayer = false) {
+  // hedefe doğrudan git; önünde engel varsa açı tarayarak en iyi yönü bul
+  const base = Math.atan2(to.x - from.x, to.z - from.z);
+  let best = null, bestScore = -1e9;
+  for (let i = 0; i < 16; i++) {
+    const spread = i === 0 ? 0 : (Math.ceil(i / 2) * (i % 2 ? 1 : -1)) * 0.26;
+    const a = base + spread;
+    const dist = Math.min(6, Math.hypot(to.x - from.x, to.z - from.z));
+    const px = from.x + Math.sin(a) * dist;
+    const pz = from.z + Math.cos(a) * dist;
+    if (collides(px, pz, 0.7)) continue;
+    // görüş hattı açık mı?
+    let clear = true;
+    for (const b of obstacles) {
+      if (b.h >= 1.2 && segBox(from.x, from.z, px, pz, b)) { clear = false; break; }
+    }
+    let score = clear ? 10 : 0;
+    score -= Math.abs(spread) * 4;
+    // hedefe kalan mesafeyi azaltan yönü tercih et
+    const remOld = Math.hypot(to.x - from.x, to.z - from.z);
+    const remNew = Math.hypot(to.x - px, to.z - pz);
+    score += (remOld - remNew) * 2;
+    if (avoidPlayer) {
+      const d = Math.hypot(px - player.pos.x, pz - player.pos.z);
+      score += Math.min(d, 18) * 0.7;
+    }
+    if (score > bestScore) { bestScore = score; best = V(px, pz); }
+  }
+  return best || to.clone();
+}
+
+/* ==================== NPC ==================== */
 function spawnNPC(role, awayFrom, minD) {
   const p = randomFreePoint(awayFrom, minD);
   const mesh = makeCharacter(role === 'seeker' ? 0xe5484d : 0x8ecae6, role === 'seeker');
@@ -53658,7 +53914,15 @@ function spawnNPC(role, awayFrom, minD) {
     target: randomFreePoint(p, 6),
     speed: 2.6, seeT: 0, loseT: 0, lastSeen: null,
     searchT: 0, searchCenter: null, wanderT: rnd(0, 3),
-    caught: false, caughtBy: null, hiding: null,
+    caught: false, frozen: 0, slip: 0,
+    // AI hafızası
+    memory: [],           // son görülen noktalar
+    suspicious: null,     // şüpheli nokta
+    lookT: 0,             // durup etrafa bakma
+    role_: role,
+    coverCheckT: rnd(0, 2),
+    personality: rnd(0.8, 1.25),   // hız/görüş çeşitliliği
+    decoyTarget: null,
   };
   npcs.push(n);
   return n;
@@ -53667,51 +53931,225 @@ function spawnNPC(role, awayFrom, minD) {
 function clearNPCs() {
   for (const n of npcs) scene.remove(n.mesh);
   npcs.length = 0;
+  for (const t of traps) { if (t.mesh) scene.remove(t.mesh); }
+  traps.length = 0;
+  for (const s of smokeZones) scene.remove(s.mesh);
+  smokeZones.length = 0;
+  hiderTargets = [];
+  radarT = 0;
 }
 
-/* ---------------- Tur ---------------- */
+/* ==================== TUR ==================== */
 function startRound(forceRole = null) {
   clearNPCs();
   state.role = forceRole ?? (Math.random() < 0.70 ? 'hider' : 'seeker');
   state.round++;
   state.time = TIME_LIMIT;
-  player.stamina = 100; player.exhausted = false;
-  player.hidden = null; player.pitch = 0; player.stun = 0;
 
-  // doğuş
+  // ekipman etkileri
+  const batLvl = passiveLevel('battery');
+  const spdLvl = passiveLevel('speed');
+  player.staminaMax = 100 + batLvl * 30;
+  player.stamina = player.staminaMax;
+  player.exhausted = false;
+  player.hidden = null; player.pitch = 0; player.stun = 0;
+  player.sprintT = 0; player.sprintCd = 0; player.sprintMult = 1;
+
   player.pos.set(0, 0, 0);
   let t = 0;
   while (collides(player.pos.x, player.pos.z, 0.6) && t++ < 60) player.pos.copy(randomFreePoint());
   player.yaw = Math.PI;
 
+  abilityCd = [0, 0];
+
   if (state.role === 'hider') {
-    // 3 ebe bot
     for (let i = 0; i < 3; i++) spawnNPC('seeker', player.pos, 20);
+    // tuzakları hazırla
+    prepTraps();
   } else {
-    // 3 saklanan bot
     for (let i = 0; i < 3; i++) spawnNPC('hider', player.pos, 14);
   }
 
-  const rc = $('roleChip');
-  rc.className = 'chip ' + state.role;
+  $('roleChip').className = 'chip ' + state.role;
   $('roleTxt').textContent = state.role === 'hider' ? 'SAKLANAN' : 'EBE';
 
   state.phase = 'playing';
   $('menu').classList.add('hidden');
+  $('shop').classList.add('hidden');
+  $('loadout').classList.add('hidden');
   $('endScreen').classList.add('hidden');
   $('pause').classList.add('hidden');
   $('hud').classList.remove('hidden');
 
+  renderAbilities();
+
   toast(
     state.role === 'hider' ? 'SAKLAN!' : 'EBE OLDUN!',
-    state.role === 'hider' ? '3 ebe bot seni arıyor. Görürlerse kovalarlar!' : '3 gizlenen botu bul ve yakala.',
+    state.role === 'hider'
+      ? 'Ebeler seni arıyor. Q ile tuzak kur, F/G ile yetenek kullan.'
+      : '3 gizlenen botu bul ve yakala.',
     state.role === 'hider' ? '#7df0b4' : '#ff9c9c'
   );
 
   renderer.domElement.requestPointerLock?.();
 }
 
-/* ---------------- Etkileşim ---------------- */
+/* ==================== TUZAKLAR ==================== */
+const trapInv = { net: 0, banana: 0, decoy: 0 };
+let netFreeze = 4, bananaSlip = 2, decoyLife = 5;
+
+function prepTraps() {
+  const netLvl = passiveLevel('trap_net');
+  const banLvl = passiveLevel('trap_banana');
+  const decLvl = passiveLevel('trap_decoy');
+  trapInv.net = netLvl ? 1 + netLvl : 0;
+  trapInv.banana = banLvl ? 2 + banLvl * 2 : 0;
+  trapInv.decoy = decLvl ? 1 + decLvl : 0;
+  netFreeze = 3 + netLvl;
+  bananaSlip = 2;
+  decoyLife = 4 + decLvl;
+}
+
+function trapTypeCount() { return trapInv.net + trapInv.banana + trapInv.decoy; }
+
+function placeTrap() {
+  if (state.phase !== 'playing' || state.role !== 'hider') return;
+  let type = null;
+  if (trapInv.net > 0) type = 'net';
+  else if (trapInv.banana > 0) type = 'banana';
+  else if (trapInv.decoy > 0) type = 'decoy';
+  if (!type) { toast('Tuzak kalmadı', 'Mağazadan tuzak al', '#ff9c9c', 900); return; }
+
+  trapInv[type]--;
+  const fwd = V(-Math.sin(player.yaw), -Math.cos(player.yaw)).multiplyScalar(1.6);
+  const px = player.pos.x + fwd.x;
+  const pz = player.pos.z + fwd.z;
+  if (collides(px, pz, 0.5)) return;
+
+  let mesh;
+  if (type === 'net') {
+    mesh = new THREE.Mesh(new THREE.CircleGeometry(0.9, 16),
+      new THREE.MeshStandardMaterial({ color: 0x9fe6c8, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+    mesh.rotation.x = -Math.PI / 2;
+  } else if (type === 'banana') {
+    mesh = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.1, 6, 12, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0xffe066 }));
+    mesh.rotation.x = -Math.PI / 2;
+  } else {
+    mesh = makeCharacter(0x8ecae6, false);
+    mesh.scale.setScalar(0.95);
+  }
+  mesh.position.set(px, type === 'decoy' ? 0 : 0.05, pz);
+  scene.add(mesh);
+  traps.push({ type, pos: V(px, pz), mesh, life: type === 'decoy' ? decoyLife : 999, t: 0 });
+  renderAbilities();
+  toast(type === 'net' ? 'Ağ kuruldu' : type === 'banana' ? 'Muz bırakıldı' : 'Yem bot bırakıldı', '', '#7df0b4', 700);
+}
+
+function updateTraps(dt) {
+  for (let i = traps.length - 1; i >= 0; i--) {
+    const t = traps[i];
+    t.t += dt;
+    if (t.type === 'decoy') {
+      t.life -= dt;
+      // yem botu yürüt (dikkat çeksin)
+      t.mesh.position.y = Math.abs(Math.sin(t.t * 6)) * 0.06;
+      t.mesh.rotation.y += dt * 1.5;
+      if (t.life <= 0) { scene.remove(t.mesh); traps.splice(i, 1); continue; }
+    } else if (t.type === 'net') {
+      t.mesh.material.opacity = 0.35 + Math.sin(t.t * 4) * 0.2;
+    }
+    // tetikleme
+    for (const n of npcs) {
+      if (n.role !== 'seeker' || n.caught || n.frozen > 0) continue;
+      if (n.pos.distanceTo(t.pos) < 1.3) {
+        if (t.type === 'net') { n.frozen = netFreeze; n.state = 'search'; n.searchT = 0.1; }
+        else if (t.type === 'banana') { n.slip = bananaSlip; n.frozen = bananaSlip; }
+        else if (t.type === 'decoy') { n.decoyTarget = t.pos.clone(); n.state = 'investigate'; n.target = t.pos.clone(); }
+        if (t.type !== 'decoy') {
+          scene.remove(t.mesh);
+          traps.splice(i, 1);
+          toast(t.type === 'net' ? 'TUZAK! Ebe takıldı' : 'Ebe kaydı!', '', '#7df0b4', 900);
+        }
+        break;
+      }
+    }
+  }
+}
+
+/* ==================== YETENEKLER ==================== */
+function abilityInfo() {
+  const list = [];
+  const sprint = ownedLevel('ab_sprint');
+  const radar = ownedLevel('ab_radar');
+  const smoke = ownedLevel('ab_smoke');
+  const freeze = ownedLevel('ab_freeze');
+
+  if (state.role === 'hider') {
+    if (sprint) list.push({ id: 'ab_sprint', key: 'F', icon: '💨', cd: 18 - sprint * 3, dur: 2 + sprint * 0.4 });
+    else list.push(null);
+    if (radar) list.push({ id: 'ab_radar', key: 'G', icon: '📡', cd: 20 - radar * 3, dur: 4 + radar });
+    else list.push(null);
+  } else {
+    // ebe yetenekleri (basit)
+    list.push({ id: 'seeker_dash', key: 'F', icon: '⚡', cd: 12, dur: 3 });
+    list.push(null);
+  }
+  return list;
+}
+
+function useAbility(slot) {
+  if (state.phase !== 'playing') return;
+  const info = abilityInfo()[slot];
+  if (!info) return;
+  if (abilityCd[slot] > 0) { toast('Bekleme süresi', `${Math.ceil(abilityCd[slot])} sn`, '#ff9c9c', 700); return; }
+
+  if (info.id === 'ab_sprint') {
+    player.sprintT = info.dur;
+    player.sprintCd = info.cd;
+    toast('SPRINT!', `${info.dur.toFixed(1)} sn`, '#7df0b4', 700);
+  } else if (info.id === 'ab_radar') {
+    radarT = info.dur;
+    toast('RADAR', 'Ebeler haritada işaretli', '#7df0b4', 800);
+  } else if (info.id === 'seeker_dash') {
+    player.sprintT = 3;
+    toast('HIZ!', '', '#ffd166', 700);
+  }
+  abilityCd[slot] = info.cd;
+  renderAbilities();
+}
+
+function renderAbilities() {
+  const box = $('abilities');
+  box.innerHTML = '';
+  if (state.role !== 'hider' && state.phase !== 'playing') return;
+  const list = abilityInfo();
+  list.forEach((info, idx) => {
+    const el = document.createElement('div');
+    el.className = 'ability' + (info ? '' : ' empty');
+    if (info) {
+      el.innerHTML = `<div class="ico">${info.icon}</div><div class="key">${info.key}</div>
+        <div class="cd" style="display:${abilityCd[idx] > 0 ? 'flex' : 'none'}">${Math.ceil(abilityCd[idx])}</div>`;
+      el.dataset.slot = idx;
+    } else {
+      el.innerHTML = `<div class="ico">·</div><div class="key">${idx === 0 ? 'F' : 'G'}</div>`;
+    }
+    box.appendChild(el);
+  });
+}
+
+function updateAbilityHud() {
+  const box = $('abilities');
+  [...box.children].forEach((el, idx) => {
+    const cd = el.querySelector('.cd');
+    if (!cd) return;
+    cd.style.display = abilityCd[idx] > 0 ? 'flex' : 'none';
+    cd.textContent = Math.ceil(abilityCd[idx]);
+    el.classList.toggle('ready', abilityCd[idx] <= 0);
+  });
+}
+
+/* ==================== ETKİLEŞİM ==================== */
 function nearestCover(maxDist = 2.6) {
   let best = null, bd = maxDist;
   for (const c of coverables) {
@@ -53734,8 +54172,7 @@ function tryInteract() {
   const dir = V(player.pos.x - c.x, player.pos.z - c.z);
   if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
   dir.normalize();
-  const off = c.r + 0.35;
-  player.pos.set(c.x + dir.x * off, 0, c.z + dir.z * off);
+  player.pos.set(c.x + dir.x * (c.r + 0.35), 0, c.z + dir.z * (c.r + 0.35));
   toast('Saklandın', 'E ile çık · ebe çok yaklaşırsa bulur', '#7df0b4', 1000);
 }
 
@@ -53763,7 +54200,7 @@ function tryCatch() {
   catchCooldown = 0.3;
 }
 
-/* ---------------- Toast ---------------- */
+/* ==================== TOAST ==================== */
 let toastTimer = null;
 function toast(text, sub = '', color = '#e8eef7', ms = 1500) {
   const t = $('toast');
@@ -53774,18 +54211,25 @@ function toast(text, sub = '', color = '#e8eef7', ms = 1500) {
   toastTimer = setTimeout(() => t.classList.remove('on'), ms);
 }
 
-/* ---------------- Oyuncu güncelle ---------------- */
+/* ==================== OYUNCU GÜNCELLE ==================== */
 let noiseEvent = null;
-function emitNoise(pos, radius) { noiseEvent = { pos: pos.clone(), radius }; }
+function emitNoise(pos, radius) {
+  const sneak = passiveLevel('sneakers');
+  radius *= 1 - sneak * 0.28;
+  if (!noiseEvent || noiseEvent.radius < radius) noiseEvent = { pos: pos.clone(), radius };
+}
 
 function updatePlayer(dt) {
   if (player.stun > 0) player.stun -= dt;
+  if (player.sprintT > 0) { player.sprintT -= dt; }
+  if (abilityCd[0] > 0) abilityCd[0] -= dt;
+  if (abilityCd[1] > 0) abilityCd[1] -= dt;
+  if (radarT > 0) radarT -= dt;
 
   if (player.hidden) {
     const c = player.hidden;
     const dir = V(player.pos.x - c.x, player.pos.z - c.z).normalize();
     player.yaw = Math.atan2(-dir.x, -dir.z);
-    // saklanırken yavaşça dönebilir
     return;
   }
 
@@ -53805,11 +54249,14 @@ function updatePlayer(dt) {
     player.stamina = Math.max(0, player.stamina - dt * 22);
     if (player.stamina <= 0) player.exhausted = true;
   } else {
-    player.stamina = Math.min(100, player.stamina + dt * 15);
-    if (player.exhausted && player.stamina > 35) player.exhausted = false;
+    player.stamina = Math.min(player.staminaMax, player.stamina + dt * 15);
+    if (player.exhausted && player.stamina > player.staminaMax * 0.35) player.exhausted = false;
   }
 
-  const speed = wantRun ? cfg.runSpeed : cfg.speed;
+  const spdLvl = passiveLevel('speed');
+  const baseMult = 1 + spdLvl * 0.07;
+  const sprintMult = player.sprintT > 0 ? 1.55 : 1;
+  const speed = (wantRun ? cfg.runSpeed : cfg.speed) * baseMult * sprintMult;
   player.vel.lerp(wish.multiplyScalar(speed), Math.min(1, dt * 15));
 
   const step = player.vel.clone().multiplyScalar(dt);
@@ -53824,117 +54271,217 @@ function updatePlayer(dt) {
   }
 }
 
-/* ---------------- Ebe botlar (oyuncu saklanan) ---------------- */
+/* ==================== EBE BOT YAPAY ZEKASI ==================== */
+/* Gelişmiş: görüş konisi + hafıza + koordinasyon + saklanma yeri kontrolü + devriye rotası */
+
 function updateSeekerNPC(n, dt) {
+  // donmuş / kaymış
+  if (n.frozen > 0) {
+    n.frozen -= dt;
+    n.mesh.position.set(n.pos.x, n.slip > 0 ? 0.25 : 0, n.pos.z);
+    if (n.slip > 0) { n.slip -= dt; n.mesh.rotation.z = Math.PI / 2; }
+    else n.mesh.rotation.z = 0;
+    return;
+  }
+
   const toP = V(player.pos.x - n.pos.x, player.pos.z - n.pos.z);
   const dist = toP.length();
   const dirTo = toP.clone().normalize();
   const facing = new THREE.Vector3(-Math.sin(n.yaw), 0, -Math.cos(n.yaw));
-  const inView = facing.dot(dirTo) > 0.25;
+  const cosAngle = facing.dot(dirTo);
 
-  let canSee = false;
-  if (!player.hidden) {
-    const range = 20;
-    canSee = dist < range && inView && hasLOS(n.pos.x, n.pos.z, player.pos.x, player.pos.z);
-  } else {
-    // saklanınca sadece çok yakından ve görüş açısındaysa
-    canSee = dist < 2.6 && hasLOS(n.pos.x, n.pos.z, player.pos.x, player.pos.z);
+  // görüş mesafesi: kişiliğe ve koşmaya göre
+  const running = player.vel.length() > 6.5;
+  let range = (18 + n.personality * 3) * (running ? 1.25 : 1);
+  if (player.hidden) {
+    const ghost = passiveLevel('ghost');
+    range = (2.6 - ghost * 0.6);
+  }
+  if (player.sprintT > 0) range *= 1.1;
+
+  // sis içinde görüş yok
+  let inSmoke = false;
+  for (const s of smokeZones) {
+    if (Math.hypot(n.pos.x - s.pos.x, n.pos.z - s.pos.z) < s.r) { inSmoke = true; break; }
   }
 
+  const inCone = cosAngle > (dist < 6 ? 0.1 : 0.3);   // yakında daha geniş görüş
+  const los = hasLOS(n.pos.x, n.pos.z, player.pos.x, player.pos.z);
+  const canSee = !inSmoke && dist < range && inCone && los;
+
+  // --- görüş ---
   if (canSee) {
-    n.seeT += dt; n.loseT = 0;
+    n.seeT += dt;
+    n.loseT = 0;
     n.lastSeen = player.pos.clone();
-    if (n.seeT > 0.25) { n.state = 'chase'; }
+    n.memory.unshift({ pos: player.pos.clone(), t: 0 });
+    if (n.memory.length > 6) n.memory.pop();
+    // koordinasyon: diğer ebelere haber ver
+    for (const o of npcs) {
+      if (o === n || o.role !== 'seeker' || o.caught) continue;
+      if (o.state !== 'chase' && o.pos.distanceTo(n.pos) < 26) {
+        o.suspicious = player.pos.clone();
+        if (o.state === 'patrol' || o.state === 'search') {
+          o.state = 'investigate';
+          o.target = player.pos.clone();
+          o.searchT = 6;
+        }
+      }
+    }
+    if (n.seeT > 0.22) n.state = 'chase';
   } else {
-    n.seeT = Math.max(0, n.seeT - dt * 1.5);
+    n.seeT = Math.max(0, n.seeT - dt * 1.4);
     n.loseT += dt;
-    if (n.state === 'chase' && n.loseT > 2.2) {
+    if (n.state === 'chase' && n.loseT > 2.4) {
+      // son görülen noktaya git, etrafı tara
       n.state = 'search';
-      n.searchT = 7;
+      n.searchT = 8;
       n.searchCenter = n.lastSeen ? n.lastSeen.clone() : n.pos.clone();
-      n.target = V(n.searchCenter.x + rnd(-5, 5), n.searchCenter.z + rnd(-5, 5));
+      n.target = smartWaypoint(n.pos, n.searchCenter);
     }
   }
 
-  // gürültü
+  // hafıza yaşlandır
+  for (const m of n.memory) m.t += dt;
+  n.memory = n.memory.filter((m) => m.t < 25);
+
+  // --- gürültü ---
   if (noiseEvent && !player.hidden && n.state !== 'chase') {
     const d = Math.hypot(noiseEvent.pos.x - n.pos.x, noiseEvent.pos.z - n.pos.z);
     if (d < noiseEvent.radius) {
       n.state = 'investigate';
-      n.target = noiseEvent.pos.clone();
+      n.target = smartWaypoint(n.pos, noiseEvent.pos);
       n.searchT = 5;
+      n.suspicious = noiseEvent.pos.clone();
     }
   }
 
-  // durum
+  // --- yem botu takibi ---
+  if (n.decoyTarget) {
+    if (n.pos.distanceTo(n.decoyTarget) < 1.6) n.decoyTarget = null;
+    else { n.state = 'investigate'; n.target = n.decoyTarget.clone(); }
+  }
+
+  // --- saklanma yeri kontrolü: yakındaki çalıların arkasına bak ---
+  n.coverCheckT -= dt;
+  if (n.coverCheckT <= 0 && n.state !== 'chase') {
+    n.coverCheckT = rnd(1.6, 3.4);
+    let bestC = null, bd = 9;
+    for (const c of coverables) {
+      const d = Math.hypot(c.x - n.pos.x, c.z - n.pos.z);
+      if (d < bd) { bd = d; bestC = c; }
+    }
+    if (bestC && Math.random() < 0.65) {
+      n.state = 'investigate';
+      n.target = V(bestC.x + rnd(-1, 1), bestC.z + rnd(-1, 1));
+      n.searchT = 3.5;
+    }
+  }
+
+  // --- durum makinesi ---
   if (n.state === 'chase') {
-    n.target = player.pos.clone();
-    n.speed = 5.0;                     // oyuncudan biraz yavaş → kaçmak mümkün
+    // hedefe doğrudan, engel varsa dolan
+    n.target = smartWaypoint(n.pos, player.pos);
+    n.speed = 5.0 * n.personality;
+    n.lookT = 0;
   } else if (n.state === 'investigate') {
-    n.speed = 3.8;
-    if (n.pos.distanceTo(n.target) < 1.4) { n.state = 'search'; n.searchT = 4; n.searchCenter = n.pos.clone(); }
+    n.speed = 3.9 * n.personality;
+    if (n.pos.distanceTo(n.target) < 1.5) {
+      n.state = 'search';
+      n.searchT = 5;
+      n.searchCenter = n.pos.clone();
+      n.target = smartWaypoint(n.pos, V(n.pos.x + rnd(-7, 7), n.pos.z + rnd(-7, 7)));
+    }
   } else if (n.state === 'search') {
-    n.speed = 2.8; n.searchT -= dt;
-    if (n.pos.distanceTo(n.target) < 1.3 || n.searchT <= 0) {
-      if (n.searchT <= 0) { n.state = 'patrol'; n.target = randomFreePoint(n.pos, 6); }
-      else n.target = V(n.searchCenter.x + rnd(-6, 6), n.searchCenter.z + rnd(-6, 6));
+    n.searchT -= dt;
+    n.speed = 2.9;
+    // etrafa bak (dönerek)
+    n.lookT -= dt;
+    if (n.lookT <= 0) { n.lookT = rnd(1.2, 2.2); n.lookDir = rnd(-1, 1); }
+    n.yaw += (n.lookDir || 0) * dt * 1.4;
+    if (n.pos.distanceTo(n.target) < 1.5 || n.searchT <= 0) {
+      if (n.searchT <= 0) {
+        n.state = 'patrol';
+        n.target = randomFreePoint(n.pos, 8);
+      } else {
+        const c = n.searchCenter || n.pos;
+        n.target = smartWaypoint(n.pos, V(c.x + rnd(-7, 7), c.z + rnd(-7, 7)));
+      }
     }
   } else {
-    n.speed = 2.4;
-    if (!n.target || n.pos.distanceTo(n.target) < 1.4) n.target = randomFreePoint(n.pos, 9);
+    // devriye: haritayı tara
+    n.speed = 2.5;
+    if (!n.target || n.pos.distanceTo(n.target) < 1.6) {
+      // oyuncunun olmadığı bölgeye yönel
+      let best = null, bestScore = -1e9;
+      for (let i = 0; i < 10; i++) {
+        const p = randomFreePoint(n.pos, 12);
+        const score = Math.hypot(p.x - player.pos.x, p.z - player.pos.z) * 0.3 + Math.random() * 10;
+        if (score > bestScore) { bestScore = score; best = p; }
+      }
+      n.target = best || randomFreePoint(n.pos, 10);
+    }
   }
 
   moveNPC(n, dt);
 
-  // yakalama
+  // --- yakalama ---
   if (dist < 1.45 && !player.hidden && n.state === 'chase') {
     endRound(false, 'Ebe seni yakaladı!');
   }
-  if (player.hidden && dist < 1.2 && hasLOS(n.pos.x, n.pos.z, player.pos.x, player.pos.z)) {
+  if (player.hidden && dist < 1.15 && hasLOS(n.pos.x, n.pos.z, player.pos.x, player.pos.z)) {
     player.hidden = null;
     toast('BULUNDUN!', 'Hemen kaç!', '#ff9c9c', 1100);
   }
 }
 
-/* ---------------- Saklanan botlar (oyuncu ebe) ---------------- */
+/* ==================== SAKLANAN BOT YAPAY ZEKASI (oyuncu ebe) ==================== */
 function updateHiderNPC(n, dt) {
   const toP = V(player.pos.x - n.pos.x, player.pos.z - n.pos.z);
   const dist = toP.length();
   const los = hasLOS(n.pos.x, n.pos.z, player.pos.x, player.pos.z);
+  const facing = new THREE.Vector3(-Math.sin(n.yaw), 0, -Math.cos(n.yaw));
+  const inCone = facing.dot(toP.clone().normalize()) > 0.1;
 
-  // oyuncu görünce kaç
-  if (dist < 16 && los) {
+  // oyuncu görünce kaç (daha akıllı: kaçarken engel kullanır)
+  if (dist < 17 && los && inCone) {
     n.state = 'flee';
-    n.speed = 4.4;
-    if (!n.target || Math.random() < dt * 2.5) {
-      const away = toP.clone().normalize().multiplyScalar(-1);
+    n.speed = 4.5;
+    if (!n.target || Math.random() < dt * 3) {
       let best = null, bestScore = -1e9;
-      for (let i = 0; i < 16; i++) {
-        const a = rnd(-1.2, 1.2);
-        const d = away.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), a);
-        const px = n.pos.x + d.x * rnd(6, 14);
-        const pz = n.pos.z + d.z * rnd(6, 14);
+      for (let i = 0; i < 18; i++) {
+        const a = rnd(-1.3, 1.3) + Math.atan2(-toP.x, -toP.z);
+        const d = rnd(6, 15);
+        const px = n.pos.x + Math.sin(a) * d;
+        const pz = n.pos.z + Math.cos(a) * d;
         if (collides(px, pz, 0.6)) continue;
-        const score = Math.hypot(px - player.pos.x, pz - player.pos.z);
+        let score = Math.hypot(px - player.pos.x, pz - player.pos.z);
+        // engel arkasına kaçmayı tercih et
+        if (!hasLOS(player.pos.x, player.pos.z, px, pz)) score += 8;
         if (score > bestScore) { bestScore = score; best = V(px, pz); }
       }
       if (best) n.target = best;
     }
   } else {
     n.state = 'hide';
-    n.speed = 2.6;
+    n.speed = 2.7;
     n.wanderT -= dt;
     if (!n.target || n.wanderT <= 0 || n.pos.distanceTo(n.target) < 1.3) {
-      n.target = randomFreePoint(n.pos, 6);
-      n.wanderT = rnd(2, 5);
+      // çalıların yakınına saklan
+      if (Math.random() < 0.5 && coverables.length) {
+        const c = coverables[Math.floor(Math.random() * coverables.length)];
+        n.target = V(c.x + rnd(-1.5, 1.5), c.z + rnd(-1.5, 1.5));
+      } else {
+        n.target = randomFreePoint(n.pos, 7);
+      }
+      n.wanderT = rnd(2.5, 5);
     }
   }
 
   moveNPC(n, dt);
-
-  // oyuncuya çok yaklaşırsa otomatik yakalanma yok — sol tık gerekli
 }
 
+/* ==================== NPC HAREKET ==================== */
 function moveNPC(n, dt) {
   if (!n.target) return;
   const to = V(n.target.x - n.pos.x, n.target.z - n.pos.z);
@@ -53966,7 +54513,28 @@ function moveNPC(n, dt) {
   }
 }
 
-/* ---------------- HUD ---------------- */
+/* ==================== SİS ==================== */
+function spawnSmoke(x, z, dur) {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(3.4, 16, 12),
+    new THREE.MeshBasicMaterial({ color: 0xdfe8f5, transparent: true, opacity: 0.55 })
+  );
+  mesh.position.set(x, 1.4, z);
+  scene.add(mesh);
+  smokeZones.push({ pos: V(x, z), r: 3.4, life: dur, mesh });
+}
+
+function updateSmoke(dt) {
+  for (let i = smokeZones.length - 1; i >= 0; i--) {
+    const s = smokeZones[i];
+    s.life -= dt;
+    s.mesh.material.opacity = Math.max(0, Math.min(0.55, s.life * 0.3));
+    s.mesh.scale.setScalar(1 + (3.4 - s.life) * 0.02);
+    if (s.life <= 0) { scene.remove(s.mesh); smokeZones.splice(i, 1); }
+  }
+}
+
+/* ==================== HUD ==================== */
 const fmtTime = (s) => {
   s = Math.max(0, Math.ceil(s));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -53974,6 +54542,12 @@ const fmtTime = (s) => {
 
 const mm = $('minimap');
 const mctx = mm.getContext('2d');
+
+function applyMapSize() {
+  const big = save.settings.bigMap;
+  mm.style.width = big ? '300px' : '168px';
+  mm.style.height = big ? '300px' : '168px';
+}
 
 function drawMinimap() {
   const S = mm.width, pad = 6;
@@ -53986,24 +54560,36 @@ function drawMinimap() {
   mctx.fillStyle = 'rgba(46,74,42,.85)';
   mctx.beginPath(); mctx.arc(cx, cy, (S - pad * 2) / 2, 0, 6.2832); mctx.fill();
 
-  // engeller
   mctx.fillStyle = 'rgba(20,32,18,.7)';
   for (const b of obstacles) {
     mctx.fillRect(tx(b.minX), ty(b.minZ), (b.maxX - b.minX) * scale, (b.maxZ - b.minZ) * scale);
   }
 
-  // NPC'ler
-  for (const n of npcs) {
-    if (n.caught) continue;
-    const isDanger = n.role === 'seeker' && state.role === 'hider';
-    mctx.beginPath();
-    mctx.arc(tx(n.pos.x), ty(n.pos.z), isDanger ? 7 : 5.5, 0, 6.2832);
-    mctx.fillStyle = n.role === 'seeker' ? (n.state === 'chase' ? '#ff3b3b' : '#e5484d') : '#8ecae6';
-    mctx.fill();
-    mctx.strokeStyle = 'rgba(0,0,0,.5)'; mctx.lineWidth = 1.5; mctx.stroke();
+  // tuzaklar
+  for (const t of traps) {
+    mctx.fillStyle = t.type === 'net' ? '#9fe6c8' : t.type === 'banana' ? '#ffe066' : '#8ecae6';
+    mctx.fillRect(tx(t.pos.x) - 2, ty(t.pos.z) - 2, 4, 4);
   }
 
-  // oyuncu + bakış yönü
+  // NPC
+  for (const n of npcs) {
+    if (n.caught) continue;
+    const danger = n.role === 'seeker' && state.role === 'hider';
+    const highlight = radarT > 0 && n.role === 'seeker';
+    mctx.beginPath();
+    mctx.arc(tx(n.pos.x), ty(n.pos.z), danger ? (highlight ? 9 : 7) : 5.5, 0, 6.2832);
+    mctx.fillStyle = n.role === 'seeker'
+      ? (n.state === 'chase' ? '#ff3b3b' : highlight ? '#ff9f1c' : '#e5484d')
+      : '#8ecae6';
+    mctx.fill();
+    mctx.strokeStyle = 'rgba(0,0,0,.5)'; mctx.lineWidth = 1.5; mctx.stroke();
+    if (highlight) {
+      mctx.beginPath();
+      mctx.arc(tx(n.pos.x), ty(n.pos.z), 13, 0, 6.2832);
+      mctx.strokeStyle = 'rgba(255,159,28,.8)'; mctx.lineWidth = 2; mctx.stroke();
+    }
+  }
+
   const px = tx(player.pos.x), py = ty(player.pos.z);
   mctx.save();
   mctx.translate(px, py);
@@ -54015,15 +54601,14 @@ function drawMinimap() {
   mctx.restore();
 }
 
-let dangerLevel = 0;
 function updateHUD(dt) {
   if (state.phase !== 'playing') return;
   state.time -= dt;
   $('timer').classList.toggle('warn', state.time < 15);
   $('timeVal').textContent = fmtTime(state.time);
-  $('stamina').style.width = player.stamina + '%';
+  $('coinVal').textContent = save.coins;
+  $('stamina').style.width = (player.stamina / player.staminaMax * 100) + '%';
   $('staminaWrap').classList.toggle('tired', player.exhausted);
-  $('scoreVal').textContent = state.score;
 
   const p = $('prompt');
   if (state.role === 'hider') {
@@ -54035,7 +54620,6 @@ function updateHUD(dt) {
     }
   } else p.classList.remove('on');
 
-  // tehlike göstergesi
   let nearest = 1e9, chasing = false;
   for (const n of npcs) {
     if (n.role !== 'seeker' || n.caught) continue;
@@ -54047,9 +54631,10 @@ function updateHUD(dt) {
     if (chasing) target = 1;
     else if (nearest < 14) target = Math.max(0, 1 - nearest / 14) * 0.45;
   }
-  dangerLevel += (target - dangerLevel) * Math.min(1, dt * 6);
-  $('danger').style.opacity = dangerLevel.toFixed(3);
+  state.danger += (target - state.danger) * Math.min(1, dt * 6);
+  $('danger').style.opacity = state.danger.toFixed(3);
 
+  updateAbilityHud();
   drawMinimap();
 
   if (state.time <= 0) {
@@ -54058,24 +54643,29 @@ function updateHUD(dt) {
   }
 }
 
-/* ---------------- Tur sonu ---------------- */
+/* ==================== TUR SONU ==================== */
 function endRound(win, reason = '') {
   if (state.phase !== 'playing') return;
   state.phase = 'ended';
   document.exitPointerLock?.();
 
-  let gained;
+  const luck = passiveLevel('luck');
+  let gained, xpGain;
   if (win) {
-    state.streak++;
+    save.wins++;
     const base = state.role === 'hider' ? 100 : 150;
     const timeBonus = Math.round(Math.max(0, state.time) * 2);
-    const mult = 1 + Math.min(state.streak - 1, 5) * 0.2;
+    const mult = 1 + luck * 0.2;
     gained = Math.round((base + timeBonus) * mult);
+    xpGain = 60 + (state.role === 'hider' ? 20 : 30);
   } else {
-    state.streak = 0;
-    gained = 25;
+    save.losses++;
+    gained = 30;
+    xpGain = 20;
   }
-  state.score += gained;
+  save.coins += gained;
+  save.bestScore = Math.max(save.bestScore, save.coins);
+  persist();
 
   $('hud').classList.add('hidden');
   $('endScreen').classList.remove('hidden');
@@ -54084,13 +54674,17 @@ function endRound(win, reason = '') {
   $('endSub').textContent = reason || (win ? 'Tebrikler!' : 'Tekrar dene.');
   $('endStats').innerHTML = `
     <div class="stat"><span>Rol</span><b>${state.role === 'hider' ? 'Saklanan' : 'Ebe'}</b></div>
-    <div class="stat"><span>Kazanılan puan</span><b style="color:#7df0b4">+${gained}</b></div>
-    <div class="stat"><span>Seri</span><b>${state.streak}×</b></div>
-    <div class="stat"><span>Toplam puan</span><b>${state.score}</b></div>
+    <div class="stat"><span>Kazanılan para</span><b style="color:#ffd166">+${gained} 🪙</b></div>
+    <div class="stat"><span>Deneyim</span><b style="color:#7df0b4">+${xpGain} XP</b></div>
+    <div class="stat"><span>Toplam para</span><b>${save.coins} 🪙</b></div>
+    <div class="stat"><span>Seviye</span><b>${save.level}</b></div>
+    <div class="stat"><span>Galibiyet / Mağlubiyet</span><b>${save.wins} / ${save.losses}</b></div>
   `;
+  addXp(xpGain);
+  renderMenuStats();
 }
 
-/* ---------------- Duraklat ---------------- */
+/* ==================== DURAKLAT / MENÜ ==================== */
 function pauseGame() {
   if (state.phase !== 'playing') return;
   state.phase = 'paused';
@@ -54109,10 +54703,105 @@ function toMenu() {
   $('hud').classList.add('hidden');
   $('pause').classList.add('hidden');
   $('endScreen').classList.add('hidden');
+  $('shop').classList.add('hidden');
+  $('loadout').classList.add('hidden');
   $('menu').classList.remove('hidden');
+  renderMenuStats();
+  renderShop();
+  persist();
 }
 
-/* ---------------- Kamera ---------------- */
+/* ==================== ARAYÜZ RENDER ==================== */
+function renderMenuStats() {
+  $('menuCoins').textContent = save.coins;
+  $('menuLevel').textContent = save.level;
+  $('menuStats').textContent = `${save.wins}G / ${save.losses}M`;
+}
+
+function renderShop() {
+  $('shopCoins').textContent = save.coins;
+  const grid = $('shopGrid');
+  grid.innerHTML = '';
+  const groups = [
+    { slot: 'passive', title: 'Pasif Eşyalar' },
+    { slot: 'trap', title: 'Tuzaklar' },
+    { slot: 'ability', title: 'Yetenekler' },
+  ];
+  for (const g of groups) {
+    const h = document.createElement('h2');
+    h.textContent = g.title;
+    h.style.gridColumn = '1 / -1';
+    grid.appendChild(h);
+    for (const item of SHOP.filter((s) => s.slot === g.slot)) {
+      const lvl = ownedLevel(item.id);
+      const maxed = lvl >= item.max;
+      const price = maxed ? 0 : item.cost(lvl);
+      const canAfford = save.coins >= price;
+      const el = document.createElement('div');
+      el.className = 'item' + (lvl > 0 ? ' owned' : '');
+      el.innerHTML = `
+        <div class="top">
+          <span class="ico">${item.icon}</span>
+          <span class="nm">${item.name}</span>
+          ${lvl > 0 ? `<span class="badge on">Sv.${lvl}</span>` : ''}
+        </div>
+        <div class="ds">${item.desc}</div>
+        <div class="lvl">${lvl > 0 ? item.effect(lvl) : item.effect(1) + ' (Sv.1)'}</div>
+        <div class="foot">
+          <span class="pr">${maxed ? 'MAKS' : price + ' 🪙'}</span>
+          <button class="btn small buy" data-buy="${item.id}" ${maxed || !canAfford ? 'disabled' : ''}>
+            ${lvl > 0 ? 'Geliştir' : 'Satın Al'}
+          </button>
+        </div>`;
+      grid.appendChild(el);
+    }
+  }
+  grid.querySelectorAll('[data-buy]').forEach((b) => {
+    b.onclick = () => buyItem(b.dataset.buy);
+  });
+}
+
+function renderLoadout() {
+  const list = $('loadoutList');
+  list.innerHTML = '';
+  const slots = [
+    { slot: 'passive', title: 'Pasif Eşya (1 slot)' },
+    { slot: 'trap', title: 'Tuzak (1 slot)' },
+    { slot: 'ability', title: 'Yetenek (2 slot)' },
+  ];
+  for (const s of slots) {
+    const h = document.createElement('h2');
+    h.textContent = s.title;
+    list.appendChild(h);
+    const owned = SHOP.filter((i) => i.slot === s.slot && ownedLevel(i.id) > 0);
+    if (!owned.length) {
+      const p = document.createElement('p');
+      p.className = 'sub';
+      p.style.fontSize = '13px';
+      p.textContent = 'Henüz bu slottan eşyan yok — mağazadan al.';
+      list.appendChild(p);
+      continue;
+    }
+    const row = document.createElement('div');
+    row.className = 'row';
+    for (const item of owned) {
+      const active = save.loadout[s.slot] === item.id;
+      const b = document.createElement('button');
+      b.className = 'btn small' + (active ? ' primary' : '');
+      b.textContent = `${item.icon} ${item.name} Sv.${ownedLevel(item.id)}`;
+      b.onclick = () => { equipItem(item.id); renderLoadout(); };
+      row.appendChild(b);
+    }
+    list.appendChild(row);
+  }
+}
+
+function applySensLabel() {
+  $('sensBtn').textContent = 'Hassasiyet: ' + SENS_LEVELS[cfg.sensIdx].name;
+  $('invertBtn').textContent = 'Fare Y: ' + (cfg.invertY ? 'Ters' : 'Normal');
+}
+
+/* ==================== KAMERA ==================== */
 function updateCamera(dt) {
   const eye = player.hidden ? 1.15 : cfg.eye;
   camera.position.x = player.pos.x;
@@ -54133,7 +54822,7 @@ function updateCamera(dt) {
   camera.lookAt(camera.position.clone().add(dir));
 }
 
-/* ---------------- Döngü ---------------- */
+/* ==================== DÖNGÜ ==================== */
 const clock = new THREE.Clock();
 
 function loop() {
@@ -54147,6 +54836,8 @@ function loop() {
       if (n.role === 'seeker') updateSeekerNPC(n, dt);
       else updateHiderNPC(n, dt);
     }
+    updateTraps(dt);
+    updateSmoke(dt);
     noiseEvent = null;
     if (catchCooldown > 0) catchCooldown -= dt;
     updateHUD(dt);
@@ -54164,24 +54855,53 @@ function loop() {
 }
 loop();
 
-/* ---------------- UI ---------------- */
+/* ==================== UI BAĞLA ==================== */
 $('startBtn').onclick = () => startRound();
 $('nextBtn').onclick = () => startRound();
 $('menuBtn').onclick = () => toMenu();
 $('resumeBtn').onclick = () => resumeGame();
 $('quitBtn').onclick = () => toMenu();
+$('shopBtn').onclick = () => { renderShop(); $('menu').classList.add('hidden'); $('shop').classList.remove('hidden'); };
+$('endShopBtn').onclick = () => { renderShop(); $('endScreen').classList.add('hidden'); $('shop').classList.remove('hidden'); };
+$('shopBack').onclick = () => {
+  $('shop').classList.add('hidden');
+  if (state.phase === 'menu') { $('menu').classList.remove('hidden'); renderMenuStats(); }
+  else { $('endScreen').classList.remove('hidden'); }
+};
+$('loadoutBtn').onclick = () => { renderLoadout(); $('menu').classList.add('hidden'); $('loadout').classList.remove('hidden'); };
+$('loadoutBack').onclick = () => { $('loadout').classList.add('hidden'); $('menu').classList.remove('hidden'); };
+
 $('sensBtn').onclick = () => {
   cfg.sensIdx = (cfg.sensIdx + 1) % SENS_LEVELS.length;
-  $('sensBtn').textContent = 'Hassasiyet: ' + SENS_LEVELS[cfg.sensIdx].name;
+  save.settings.sensIdx = cfg.sensIdx;
+  persist(); applySensLabel();
 };
 $('invertBtn').onclick = () => {
   cfg.invertY = !cfg.invertY;
-  $('invertBtn').textContent = 'Fare Y: ' + (cfg.invertY ? 'Ters' : 'Normal');
+  save.settings.invertY = cfg.invertY;
+  persist(); applySensLabel();
 };
+$('resetBtn').onclick = () => {
+  if (!confirm('Tüm kayıt silinsin mi? Para, seviye ve eşyalar sıfırlanacak.')) return;
+  save = structuredClone(DEFAULT_SAVE);
+  persist(); renderMenuStats(); renderShop();
+  toast('Kayıt sıfırlandı', '', '#ff9c9c', 1200);
+};
+
 $('pause').addEventListener('click', (e) => { if (e.target.id === 'pause') resumeGame(); });
 
-window.__game = { state, player, startRound, npcs, obstacles };
+/* ==================== BAŞLAT ==================== */
+applySensLabel();
+applyMapSize();
+renderMenuStats();
+renderShop();
 
+// hata ayıklama / test
+window.__game = {
+  state, player, npcs, traps, coverables, obstacles, SHOP,
+  startRound, placeTrap, useAbility, buyItem, endRound, get save() { return save; },
+  get trapInv() { return trapInv; },
+};
 
 </script>
 </body>
